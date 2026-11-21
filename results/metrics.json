@@ -1,0 +1,192 @@
+{
+  "dataset": {
+    "total_examples": 240,
+    "train_examples": 180,
+    "test_examples": 60,
+    "classes": [
+      "binary_search",
+      "bubble_sort",
+      "insertion_sort",
+      "linear_search",
+      "merge_sort",
+      "quick_sort"
+    ],
+    "split_method": "Stratified grouped holdout: two complete original template families per class are held out, keeping all variants of a template together",
+    "data_note": "All current examples are original controlled examples created for this project; they are not external real-world repository samples."
+  },
+  "models": {
+    "tfidf_logistic_regression": {
+      "accuracy": 0.6833333333333333,
+      "macro_f1": 0.6313492063492063,
+      "weighted_f1": 0.6313492063492063,
+      "classification_report": {
+        "binary_search": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 10.0
+        },
+        "bubble_sort": {
+          "precision": 0.35714285714285715,
+          "recall": 0.5,
+          "f1-score": 0.4166666666666667,
+          "support": 10.0
+        },
+        "insertion_sort": {
+          "precision": 0.5454545454545454,
+          "recall": 0.6,
+          "f1-score": 0.5714285714285714,
+          "support": 10.0
+        },
+        "linear_search": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 10.0
+        },
+        "merge_sort": {
+          "precision": 0.6666666666666666,
+          "recall": 1.0,
+          "f1-score": 0.8,
+          "support": 10.0
+        },
+        "quick_sort": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 10.0
+        },
+        "accuracy": 0.6833333333333333,
+        "macro avg": {
+          "precision": 0.5948773448773449,
+          "recall": 0.6833333333333332,
+          "f1-score": 0.6313492063492063,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.5948773448773449,
+          "recall": 0.6833333333333333,
+          "f1-score": 0.6313492063492063,
+          "support": 60.0
+        }
+      }
+    },
+    "tfidf_linear_svm": {
+      "accuracy": 0.8333333333333334,
+      "macro_f1": 0.8277777777777778,
+      "weighted_f1": 0.8277777777777777,
+      "classification_report": {
+        "binary_search": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 10.0
+        },
+        "bubble_sort": {
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1-score": 0.5,
+          "support": 10.0
+        },
+        "insertion_sort": {
+          "precision": 0.6666666666666666,
+          "recall": 1.0,
+          "f1-score": 0.8,
+          "support": 10.0
+        },
+        "linear_search": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 10.0
+        },
+        "merge_sort": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 10.0
+        },
+        "quick_sort": {
+          "precision": 1.0,
+          "recall": 0.5,
+          "f1-score": 0.6666666666666666,
+          "support": 10.0
+        },
+        "accuracy": 0.8333333333333334,
+        "macro avg": {
+          "precision": 0.861111111111111,
+          "recall": 0.8333333333333334,
+          "f1-score": 0.8277777777777778,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.861111111111111,
+          "recall": 0.8333333333333334,
+          "f1-score": 0.8277777777777777,
+          "support": 60.0
+        }
+      }
+    }
+  },
+  "selected_model": "tfidf_linear_svm",
+  "selected_model_reason": "Highest held-out accuracy among the implemented baselines; this is a small controlled dataset and results should not be interpreted as real-world performance.",
+  "selected_model_classification_report": {
+    "binary_search": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 10.0
+    },
+    "bubble_sort": {
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1-score": 0.5,
+      "support": 10.0
+    },
+    "insertion_sort": {
+      "precision": 0.6666666666666666,
+      "recall": 1.0,
+      "f1-score": 0.8,
+      "support": 10.0
+    },
+    "linear_search": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 10.0
+    },
+    "merge_sort": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 10.0
+    },
+    "quick_sort": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1-score": 0.6666666666666666,
+      "support": 10.0
+    },
+    "accuracy": 0.8333333333333334,
+    "macro avg": {
+      "precision": 0.861111111111111,
+      "recall": 0.8333333333333334,
+      "f1-score": 0.8277777777777778,
+      "support": 60.0
+    },
+    "weighted avg": {
+      "precision": 0.861111111111111,
+      "recall": 0.8333333333333334,
+      "f1-score": 0.8277777777777777,
+      "support": 60.0
+    }
+  },
+  "test_examples_by_class": {
+    "binary_search": 10,
+    "bubble_sort": 10,
+    "insertion_sort": 10,
+    "linear_search": 10,
+    "merge_sort": 10,
+    "quick_sort": 10
+  }
+}
