@@ -1,0 +1,211 @@
+sample_id,algorithm,code,repository,source_url,license
+linear_iterative,Linear Search,"def linear_search(sequence, target):
+    for index, item in enumerate(sequence):
+        if item == target:
+            return index
+    return -1",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/searches/linear_search.py,MIT
+linear_recursive,Linear Search,"def rec_linear_search(sequence, low, high, target):
+    if not (0 <= high < len(sequence) and 0 <= low < len(sequence)):
+        raise ValueError(""Invalid upper or lower bound!"")
+    if high < low:
+        return -1
+    if sequence[low] == target:
+        return low
+    return rec_linear_search(sequence, low + 1, high, target)",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/searches/linear_search.py,MIT
+binary_iterative,Binary Search,"def binary_search(sorted_collection, item):
+    left = 0
+    right = len(sorted_collection) - 1
+    result = -1
+    while left <= right:
+        midpoint = left + (right - left) // 2
+        current_item = sorted_collection[midpoint]
+        if current_item == item:
+            result = midpoint
+            right = midpoint - 1
+        elif item < current_item:
+            right = midpoint - 1
+        else:
+            left = midpoint + 1
+    return result",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/searches/binary_search.py,MIT
+binary_bisect_left,Binary Search,"def bisect_left(sorted_collection, item, lo=0, hi=-1):
+    if hi < 0:
+        hi = len(sorted_collection)
+    while lo < hi:
+        mid = lo + (hi - lo) // 2
+        if sorted_collection[mid] < item:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/searches/binary_search.py,MIT
+binary_recursive,Binary Search,"def binary_search_by_recursion(sorted_collection, item, left=0, right=-1):
+    if right < 0:
+        right = len(sorted_collection) - 1
+    if right < left:
+        return -1
+    midpoint = left + (right - left) // 2
+    current_item = sorted_collection[midpoint]
+    if current_item == item:
+        return midpoint
+    elif item < current_item:
+        return binary_search_by_recursion(sorted_collection, item, left, midpoint - 1)
+    else:
+        return binary_search_by_recursion(sorted_collection, item, midpoint + 1, right)",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/searches/binary_search.py,MIT
+bubble_iterative,Bubble Sort,"def bubble_sort_iterative(collection):
+    length = len(collection)
+    for i in reversed(range(length)):
+        swapped = False
+        for j in range(i):
+            if collection[j + 1] < collection[j]:
+                swapped = True
+                collection[j], collection[j + 1] = collection[j + 1], collection[j]
+        if not swapped:
+            break
+    return collection",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/bubble_sort.py,MIT
+bubble_recursive,Bubble Sort,"def bubble_sort_recursive(collection):
+    length = len(collection)
+    swapped = False
+    for i in range(length - 1):
+        if collection[i + 1] < collection[i]:
+            collection[i], collection[i + 1] = collection[i + 1], collection[i]
+            swapped = True
+    return collection if not swapped else bubble_sort_recursive(collection)",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/bubble_sort.py,MIT
+selection_iterative,Selection Sort,"def selection_sort(collection):
+    length = len(collection)
+    for i in range(length - 1):
+        min_index = i
+        for k in range(i + 1, length):
+            if collection[k] < collection[min_index]:
+                min_index = k
+        if min_index != i:
+            collection[i], collection[min_index] = collection[min_index], collection[i]
+    return collection",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/selection_sort.py,MIT
+insertion_iterative,Insertion Sort,"def insertion_sort(collection):
+    for insert_index in range(1, len(collection)):
+        insert_value = collection[insert_index]
+        while insert_index > 0 and insert_value < collection[insert_index - 1]:
+            collection[insert_index] = collection[insert_index - 1]
+            insert_index -= 1
+        collection[insert_index] = insert_value
+    return collection",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/insertion_sort.py,MIT
+merge_recursive,Merge Sort,"def merge_sort(collection):
+    def merge(left, right):
+        result = []
+        while left and right:
+            if right[0] < left[0]:
+                result.append(right.pop(0))
+            else:
+                result.append(left.pop(0))
+        result.extend(left)
+        result.extend(right)
+        return result
+    if len(collection) <= 1:
+        return collection
+    mid_index = len(collection) // 2
+    return merge(merge_sort(collection[:mid_index]), merge_sort(collection[mid_index:]))",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/merge_sort.py,MIT
+quick_recursive,Quick Sort,"from random import randrange
+
+def quick_sort(collection):
+    if len(collection) < 2:
+        return collection
+    pivot_index = randrange(len(collection))
+    pivot = collection[pivot_index]
+    lesser = [item for item in collection if item < pivot]
+    equal = [item for item in collection if item == pivot]
+    greater = [item for item in collection if item > pivot]
+    return [*quick_sort(lesser), *equal, *quick_sort(greater)]",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/quick_sort.py,MIT
+bfs_queue,Breadth-First Search,"from queue import Queue
+
+class Graph:
+    def __init__(self):
+        self.vertices = {}
+
+    def bfs(self, start_vertex):
+        visited = set()
+        queue = Queue()
+        visited.add(start_vertex)
+        queue.put(start_vertex)
+        while not queue.empty():
+            vertex = queue.get()
+            for adjacent_vertex in self.vertices[vertex]:
+                if adjacent_vertex not in visited:
+                    queue.put(adjacent_vertex)
+                    visited.add(adjacent_vertex)
+        return visited",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/graphs/breadth_first_search.py,MIT
+dfs_stack,Depth-First Search,"def depth_first_search(graph, start):
+    explored, stack = set(start), [start]
+    while stack:
+        v = stack.pop()
+        explored.add(v)
+        for adj in reversed(graph[v]):
+            if adj not in explored:
+                stack.append(adj)
+    return explored",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/graphs/depth_first_search.py,MIT
+dijkstra_heap,Dijkstra's,"import heapq
+
+def dijkstra(graph, start, end):
+    heap = [(0, start)]
+    visited = set()
+    costs = {start: 0}
+    while heap:
+        cost, u = heapq.heappop(heap)
+        if u in visited:
+            continue
+        visited.add(u)
+        if u == end:
+            return cost
+        for v, c in graph[u]:
+            if v in visited:
+                continue
+            next_cost = cost + c
+            if next_cost < costs.get(v, float(""inf"")):
+                costs[v] = next_cost
+                heapq.heappush(heap, (next_cost, v))
+    return -1",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/graphs/dijkstra.py,MIT
+astar_grid,A* Search,"DIRECTIONS = [[-1, 0], [0, -1], [1, 0], [0, 1]]
+
+def search(grid, init, goal, cost, heuristic):
+    closed = [[0 for col in range(len(grid[0]))] for row in range(len(grid))]
+    closed[init[0]][init[1]] = 1
+    action = [[0 for col in range(len(grid[0]))] for row in range(len(grid))]
+    x = init[0]
+    y = init[1]
+    g = 0
+    f = g + heuristic[x][y]
+    cell = [[f, g, x, y]]
+    found = False
+    resign = False
+    while not found and not resign:
+        if len(cell) == 0:
+            raise ValueError(""Algorithm is unable to find solution"")
+        cell.sort()
+        cell.reverse()
+        next_cell = cell.pop()
+        x = next_cell[2]
+        y = next_cell[3]
+        g = next_cell[1]
+        if x == goal[0] and y == goal[1]:
+            found = True
+        else:
+            for i in range(len(DIRECTIONS)):
+                x2 = x + DIRECTIONS[i][0]
+                y2 = y + DIRECTIONS[i][1]
+                if x2 >= 0 and x2 < len(grid) and y2 >= 0 and y2 < len(grid[0]) and closed[x2][y2] == 0 and grid[x2][y2] == 0:
+                    g2 = g + cost
+                    f2 = g2 + heuristic[x2][y2]
+                    cell.append([f2, g2, x2, y2])
+                    closed[x2][y2] = 1
+                    action[x2][y2] = i
+    invpath = []
+    x = goal[0]
+    y = goal[1]
+    invpath.append([x, y])
+    while x != init[0] or y != init[1]:
+        x2 = x - DIRECTIONS[action[x][y]][0]
+        y2 = y - DIRECTIONS[action[x][y]][1]
+        x = x2
+        y = y2
+        invpath.append([x, y])
+    path = []
+    for i in range(len(invpath)):
+        path.append(invpath[len(invpath) - 1 - i])
+    return path, action",TheAlgorithms/Python,https://raw.githubusercontent.com/TheAlgorithms/Python/master/graphs/a_star.py,MIT

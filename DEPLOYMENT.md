@@ -1,40 +1,22 @@
-# GitHub and Streamlit deployment
+# Deployment
 
-## 1. Create the GitHub repository
-
-1. Sign in to GitHub and open https://github.com/new.
-2. Name the repository `AlgoLens`.
-3. Choose Public if you want admissions reviewers to be able to view it.
-4. Do not initialize it with a README, license, or .gitignore because these are already in this folder.
-5. Create the repository.
-
-## 2. Push this project
-
-Open Terminal in this `AlgoLens` folder and run:
+## Local run
 
 ```bash
-git init
-git add .
-git commit -m "Build AlgoLens algorithm recognition prototype"
-git branch -M main
-git remote add origin https://github.com/YOUR-GITHUB-USERNAME/AlgoLens.git
-git push -u origin main
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m src
+streamlit run app.py
 ```
 
-Replace `YOUR-GITHUB-USERNAME` with your GitHub username. GitHub may ask you to authenticate in your browser.
+The app opens at the local address printed by Streamlit (normally `http://localhost:8501`). Stop it with Ctrl+C in the terminal.
 
-## 3. Deploy the Streamlit app
+## Streamlit Community Cloud
 
-1. Open https://share.streamlit.io/ and sign in with GitHub.
-2. Choose **Create app**.
-3. Select your `AlgoLens` repository and `main` branch.
-4. Set the main file path to `app.py`.
-5. Deploy.
+1. Push the project folder to a GitHub repository.
+2. In Streamlit Community Cloud, create an app from that repository.
+3. Select `app.py` as the entry point.
+4. Deploy. The app can generate the model on first use if the model artifact is not present.
 
-The app uses the trained `models/classifier.joblib` artifact included in this project. If you retrain the model, commit and push the updated model and metrics so the hosted app uses the same version.
-
-## Notes
-
-- Install dependencies from `requirements.txt`.
-- Do not put passwords, API keys, or private tokens in the repository.
-- The initial model is small enough to load in the Streamlit app. Do not perform model training on every app launch.
+For reproducible deployment, run `python -m src` before committing so the dataset, metrics, and trained model are generated from the same code version.

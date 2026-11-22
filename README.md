@@ -1,101 +1,74 @@
-# AlgoLens
+# AlgoLens — Interactive Algorithm Studio
 
-**An ML-assisted algorithm recognition and interactive visualization prototype.**
+AlgoLens is a Streamlit application for learning and exploring searching, sorting, and graph algorithms. It combines step-by-step execution visualizations with a Python code-recognition prototype that analyzes implementation structure rather than relying on algorithm names in the source.
 
-AlgoLens accepts a Python code snippet, predicts which of six classical algorithms it most resembles, displays typical complexity information, and provides step-by-step visual traces for the algorithms.
+## Highlights
 
-## Current capabilities
-
-- Six labels: binary search, linear search, bubble sort, insertion sort, quick sort, and merge sort.
-- Two machine-learning baselines: TF-IDF + Logistic Regression and TF-IDF + Linear SVM.
-- Grouped train/test split by original template family to reduce near-duplicate leakage.
-- Accuracy, macro F1, weighted F1, per-class metrics, and confusion matrix.
-- Streamlit interface for code recognition, algorithm traces, and model evaluation.
-
-## Important dataset limitation
-
-The dataset currently included in `data/processed/algorithm_samples.csv` contains **240 original controlled examples** created specifically for this project (40 per class). The examples are programmatically varied versions of eight hand-written templates per class. They are not scraped from GitHub, and they are not a representative real-world code corpus. The held-out test results therefore measure recognition among related controlled implementations, not generalization to arbitrary code found online.
-
-This is an honest baseline and a reproducible starting point. The next research step is to add independently sourced implementations with verified labels, source URLs, licenses, and repository-level splits. See `DATASET.md` before extending the corpus.
+- **11 algorithms:** Linear Search, Binary Search, Bubble Sort, Selection Sort, Insertion Sort, Merge Sort, Quick Sort, Breadth-First Search, Depth-First Search, Dijkstra's, and A* Search.
+- **Visualizer for every supported algorithm:** array comparisons, swaps, shifts, pivots, recursion-driven partitions, graph expansion, weighted edges, frontier/visited states, and path highlighting.
+- **Step controls:** move forward and backward through an execution trace and reset the visualization.
+- **Code Recognition:** Python AST parsing, identifier normalization, structural feature extraction, and a LinearSVC classifier with supporting structural evidence.
+- **Code-specific complexity estimate:** best-, average-, and worst-case time complexity estimates for the submitted snippet.
+- **Recognition animation:** Play/Pause controls and a timeline animate the detected algorithm using a user-selected demonstration input.
+- **Complexity Table:** best-, average-, and worst-case complexity references plus interactive growth curves.
+- **Source-attributed corpus:** 15 curated implementation excerpts from the MIT-licensed TheAlgorithms/Python repository, with source URLs and labels.
 
 ## Run locally
 
-1. Open this folder in VS Code.
-2. Create and activate a virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m src
+streamlit run app.py
+```
 
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
+On Windows, activate with `.venv\\Scripts\\activate`.
 
-3. Install dependencies:
+## How code recognition works
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+1. Parse submitted Python with the built-in `ast` module.
+2. Ignore comments and remove module, class, and function docstrings.
+3. Normalize function names, variable names, argument names, and ordinary attribute names.
+4. Extract AST node/operator patterns and structural signals such as nested loops, recursion, indexed reads/writes, slicing, comparisons, FIFO queue operations, stack operations, and priority-queue behavior.
+5. Combine a LinearSVC ranking with transparent structural rules to produce candidate algorithm matches and supporting evidence.
 
-4. Regenerate the dataset and train the models:
+The intent is to identify algorithmic structure even if a user renames functions and variables or removes comments. The system is a prototype, not a formal program verifier. Its score is a relative ranking, not a probability.
 
-   ```bash
-   python src/generate_dataset.py
-   python src/train_model.py
-   ```
+## Dataset provenance and evaluation
 
-5. Launch the app:
+The bundled corpus contains 15 curated implementation excerpts across 11 classes, sourced from TheAlgorithms/Python. Each CSV row includes a sample ID, algorithm label, repository, original source URL, and license. The excerpts are isolated into standalone snippets and documentation/comment text is omitted; the algorithmic control flow and operations are retained. See `data/SOURCES.md` and `DATASET.md`.
 
-   ```bash
-   streamlit run app.py
-   ```
+The corpus is small and comes from one repository. No held-out accuracy is reported because that would imply a level of independent evaluation the current data cannot support. Renaming-stress tests confirm that the bundled examples retain their expected classifications after identifiers are consistently renamed, but this is not an independent generalization test. A stronger evaluation needs many more manually verified implementations from independent repositories, deduplication, and repository- or author-held-out testing.
 
-Streamlit will print a local address, usually `http://localhost:8501`. Keep the terminal running while using the app. To stop it, press `Control + C` in the terminal.
+## Visualization scope
+
+The algorithm explorer and Code Recognition animations generate traces from reference implementations using controlled or user-selected inputs. For safety, AlgoLens does not execute arbitrary submitted Python. The Code Recognition animation uses the algorithm detected in the pasted source, but it is a reference trace—not an instruction-by-instruction replay of the exact submitted function. Complexity values are static estimates based on the detected algorithm and visible AST patterns; helper functions, data structures, and implementation details can change the actual bounds.
+
+## Graph-search assumptions
+
+- BFS finds a shortest path by number of edges in an unweighted graph.
+- DFS demonstrates depth-first traversal and does not guarantee a shortest path.
+- Dijkstra assumes non-negative edge weights.
+- A* performance depends on the heuristic; the sample graph uses a conservative heuristic for its displayed edge costs.
 
 ## Project structure
 
 ```text
 AlgoLens/
 ├── app.py
-├── data/processed/algorithm_samples.csv
-├── models/classifier.joblib
-├── results/metrics.json
-├── results/confusion_matrix.png
-├── src/generate_dataset.py
-├── src/train_model.py
-├── src/predict.py
-├── src/visualizations.py
-├── tests/test_algorithms.py
-├── DATASET.md
+├── src/
+│   ├── algorithms.py
+│   ├── recognition.py
+│   └── __main__.py
+├── data/
+│   ├── algorithm_samples.csv
+│   └── SOURCES.md
+├── models/
+├── results/
+├── tests/
+├── licenses/
 ├── requirements.txt
+├── DATASET.md
 └── README.md
 ```
-
-## Reproducibility
-
-The dataset generator and training script use fixed random seeds. The model artifact is generated locally by `src/train_model.py`; rerun training after changing the dataset. Metrics are saved in `results/metrics.json`.
-
-## Limitations and next steps
-
-- The current dataset is small and controlled; a model can learn template-specific patterns.
-- Raw SVM decision scores shown by the interface are not calibrated probabilities.
-- The app does not execute submitted code. It only classifies source text and separately visualizes the selected algorithm on sample numeric input.
-- The six-class classifier does not support arbitrary algorithms or guarantee correct identification.
-- A future version should add verified external examples, repository-level deduplication, a stronger code representation such as CodeBERT, robustness tests, and broader evaluation.
-
-## License and attribution
-
-The project code is provided under the MIT License in `LICENSE`. The initial dataset consists of original examples written for AlgoLens. No third-party source code is redistributed in the current dataset.
-
-
-## Interactive algorithm studio
-
-The Explore algorithms workspace includes:
-
-- Deliberately paced playback with play, pause, restart, previous/next controls, and three playback speeds.
-- Step-by-step array states with labels for the active, compared, swapped, and pivot elements.
-- Synchronized reference pseudocode highlighting and plain-language explanations for each operation. When a recognized submission has a clear matching source line, the app also highlights that line; otherwise it explains that the reference line is the conceptual equivalent.
-- Recursion trees for Quick Sort and Merge Sort.
-- A complexity explorer showing best, average, and worst-case growth notes and an illustrative input-size chart.
-- Interactive prediction questions, pivot selection practice for Quick Sort, and feedback explaining incorrect answers.
-
-The interface uses a restrained, editorial style: neutral surfaces, clear typography, and a small set of semantic colors for algorithm states. The interaction model takes inspiration from educational visualizers such as [VisuAlgo](https://visualgo.net/en/sorting), while the restrained palette and hierarchy follow general data-visualization guidance from [Tableau](https://help.tableau.com/current/blueprint/en-us/bp_visual_best_practices.htm) and [Carnegie Mellon University](https://www.cmu.edu/brand/brand-guidelines/data-viz.html).
-
-The recursion tree and animation are educational representations of the selected algorithm. They are not a debugger or a guaranteed line-by-line execution trace of arbitrary submitted Python code.

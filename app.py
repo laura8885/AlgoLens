@@ -1,497 +1,405 @@
-from src.visualizations import COMPLEXITY, ALGORITHM_CODE, LINE_MEANINGS, sorting_trace, search_events, plot_array, recursion_tree
-from src.predict import load_model, predict_code
-from pathlib import Path
-import sys
-import html
+from __future__ import annotations
+
 import json
-import math
-import streamlit as st
-import pandas as pd
+import random
+from pathlib import Path
+
 import matplotlib.pyplot as plt
+import networkx as nx
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+
+from src.algorithms import SAMPLE_GRAPH, array_search_trace, graph_trace, sorting_trace
+from src.recognition import analyze_code, estimate_complexity, train
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
+st.set_page_config(page_title="AlgoLens | Algorithm Studio", page_icon="◈", layout="wide", initial_sidebar_state="expanded")
 
-CASE_COMPLEXITY = {
-    'binary_search': ('O(1)', 'O(log n)', 'O(log n)'),
-    'linear_search': ('O(1)', 'O(n)', 'O(n)'),
-    'bubble_sort': ('O(n²)', 'O(n²)', 'O(n²)'),
-    'insertion_sort': ('O(n)', 'O(n²)', 'O(n²)'),
-    'quick_sort': ('O(n log n)', 'O(n log n)', 'O(n²)'),
-    'merge_sort': ('O(n log n)', 'O(n log n)', 'O(n log n)'),
-}
-
-st.set_page_config(page_title='AlgoLens | Algorithm Studio',
-                   page_icon='A', layout='wide', initial_sidebar_state='expanded')
-st.markdown('''
+st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
-:root { --ink:#202B36; --muted:#6B7785; --line:#E4E9EE; --paper:#F6F8FA; --green:#397C68; --blue:#557FA8; }
-html, body, [class*="css"] { font-family:'DM Sans',sans-serif; color:var(--ink); }
-.stApp { background:#F7F8FA; }
-.block-container { max-width:1280px; padding-top:2rem; padding-bottom:3rem; }
-h1,h2,h3 { font-family:'Manrope',sans-serif; letter-spacing:-.035em; color:#202B36; }
-h1 { font-size:2.25rem !important; font-weight:800 !important; }
-[data-testid="stSidebar"] { background:#EFF2F4; border-right:1px solid #E2E7EB; }
-[data-testid="stSidebar"] h1,[data-testid="stSidebar"] h2 { font-family:'Manrope',sans-serif; }
-div[data-testid="stMetric"] { background:white; border:1px solid #E5E9ED; padding:16px 18px; border-radius:12px; }
-.stButton>button { border-radius:9px; border:1px solid #DCE3E8; font-weight:600; min-height:2.55rem; }
-.stButton>button[kind="primary"] { background:#397C68; border-color:#397C68; }
-.stTextArea textarea, .stTextInput input, .stNumberInput input { border-radius:9px; }
-[data-testid="stVerticalBlockBorderWrapper"] { border-radius:14px; border-color:#E3E8EC; background:white; }
-.algo-kicker { color:#397C68; text-transform:uppercase; font-size:.72rem; font-weight:700; letter-spacing:.12em; }
-.algo-subtitle { color:#687583; font-size:1.02rem; margin-top:-.5rem; }
-.algo-card { background:white; border:1px solid #E3E8EC; border-radius:14px; padding:18px 20px; }
-.algo-step { font-size:.76rem; color:#687583; text-transform:uppercase; font-weight:700; letter-spacing:.1em; }
-.code-line { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre; padding:5px 10px; border-radius:5px; font-size:.83rem; color:#344252; }
-.code-line.active { background:#E6F1EC; border-left:3px solid #397C68; color:#1D493C; font-weight:700; }
-.legend-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
-.small-muted { color:#73808C; font-size:.82rem; }
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+:root { --ink:#e9edf5; --muted:#9aa7ba; --panel:#111a2b; --line:#26344a; --cyan:#67e8f9; --violet:#a78bfa; }
+html, body, [class*="css"] { font-family:'DM Sans',sans-serif; }
+.stApp { background: radial-gradient(ellipse at 12% 0%, rgba(56,189,248,.10), transparent 32%), radial-gradient(ellipse at 90% 8%, rgba(139,92,246,.10), transparent 30%), #080e19; color:var(--ink); }
+.block-container { padding-top:2rem; max-width:1440px; }
+h1,h2,h3 { font-family:'Space Grotesk',sans-serif !important; letter-spacing:-.035em; }
+[data-testid="stSidebar"] { background:#0b1321; border-right:1px solid #1d2b40; }
+[data-testid="stMetric"] { background:linear-gradient(145deg,#111d30,#0d1727); border:1px solid #26364d; padding:15px 17px; border-radius:15px; }
+[data-testid="stMetricLabel"] { color:#9aa7ba !important; }
+[data-testid="stMetricValue"] { color:#f1f5f9 !important; font-family:'Space Grotesk',sans-serif; }
+.panel { background:linear-gradient(145deg,rgba(20,31,50,.96),rgba(13,22,37,.96)); border:1px solid #26364d; border-radius:18px; padding:20px 22px; }
+.eyebrow { color:#67e8f9; text-transform:uppercase; letter-spacing:.17em; font-size:.72rem; font-weight:700; }
+.hero-title { font-family:'Space Grotesk',sans-serif; font-size:3.25rem; line-height:1.04; font-weight:700; letter-spacing:-.06em; color:#f8fafc; }
+.hero-sub { color:#a7b4c8; font-size:1.05rem; max-width:760px; line-height:1.7; }
+.tag { display:inline-block; padding:5px 10px; margin:3px 5px 3px 0; border:1px solid #30435d; border-radius:999px; color:#c5d4e8; font-size:.78rem; }
+.small-muted { color:#9aa7ba; font-size:.88rem; }
+.codebox { background:#080f1b; border:1px solid #25354d; border-radius:12px; padding:14px; }
+div.stButton > button { border-radius:10px; border:1px solid #344862; background:#17263b; color:#e8f3ff; font-weight:600; }
+div.stButton > button:hover { border-color:#67e8f9; color:#67e8f9; }
+.stTabs [data-baseweb="tab"] { color:#a9b7ca; }
+.stTabs [aria-selected="true"] { color:#67e8f9 !important; }
+hr { border-color:#24344a; }
 </style>
-''', unsafe_allow_html=True)
+""", unsafe_allow_html=True)
+
+SORTS = ["Bubble Sort", "Selection Sort", "Insertion Sort", "Merge Sort", "Quick Sort"]
+ARRAY_SEARCH = ["Linear Search", "Binary Search"]
+GRAPH_SEARCH = ["Breadth-First Search", "Depth-First Search", "Dijkstra's", "A* Search"]
+ALL_ALGORITHMS = ARRAY_SEARCH + GRAPH_SEARCH + SORTS
+
+with st.sidebar:
+    st.markdown("<div style='font-family:Space Grotesk;font-size:1.45rem;font-weight:700;color:#f1f5f9'>◈ Algo<span style='color:#67e8f9'>Lens</span></div>", unsafe_allow_html=True)
+    st.caption("ALGORITHM STUDIO · v3.0")
+    page = st.radio("WORKSPACE", ["Overview", "Algorithm Explorer", "Code Recognition", "Complexity Table", "About & Methodology"], label_visibility="visible")
+    st.divider()
+    st.markdown("<span class='small-muted'>11 algorithms · 3 families · 15 source examples</span>", unsafe_allow_html=True)
 
 
-@st.cache_resource
-def get_model():
-    return load_model()
+def metric_card(label, value, note):
+    st.metric(label, value, note)
 
 
-if 'recognized_algorithm' not in st.session_state:
-    st.session_state.recognized_algorithm = None
-if 'recognized_code' not in st.session_state:
-    st.session_state.recognized_code = ''
-if 'nav_page' not in st.session_state:
-    st.session_state.nav_page = 'Recognize code'
-if 'trace_step' not in st.session_state:
-    st.session_state.trace_step = 0
-if 'is_playing' not in st.session_state:
-    st.session_state.is_playing = False
-if 'animation_interval' not in st.session_state:
-    st.session_state.animation_interval = '1.6s'
+def complexity_table():
+    rows = [
+        ["Linear Search", "O(1)", "O(n)", "O(n)", "O(1)"],
+        ["Binary Search", "O(1)", "O(log n)", "O(log n)", "O(1)"],
+        ["BFS", "O(V + E)", "O(V + E)", "O(V + E)", "O(V)"],
+        ["DFS", "O(V + E)", "O(V + E)", "O(V + E)", "O(V)"],
+        ["Dijkstra", "O((V+E) log V)", "O((V+E) log V)", "O((V+E) log V)", "O(V)"],
+        ["A*", "Heuristic-dependent", "Heuristic-dependent", "Exponential worst case", "O(V)"],
+        ["Bubble Sort", "O(n)", "O(n²)", "O(n²)", "O(1)"],
+        ["Selection Sort", "O(n²)", "O(n²)", "O(n²)", "O(1)"],
+        ["Insertion Sort", "O(n)", "O(n²)", "O(n²)", "O(1)"],
+        ["Merge Sort", "O(n log n)", "O(n log n)", "O(n log n)", "O(n)"],
+        ["Quick Sort", "O(n log n)", "O(n log n)", "O(n²)", "O(log n) avg."],
+    ]
+    return pd.DataFrame(rows, columns=["Algorithm", "Best", "Average", "Worst", "Auxiliary space"])
 
 
-def navigate_to_explore(label):
-    st.session_state.nav_page = 'Explore algorithms'
-    st.session_state.explore_algorithm = label
-    st.session_state.trace_step = 0
-    st.session_state.is_playing = False
-
-
-def title_block(kicker, title, subtitle):
-    st.markdown(
-        f'<div class="algo-kicker">{kicker}</div><h1>{title}</h1><div class="algo-subtitle">{subtitle}</div>', unsafe_allow_html=True)
-
-
-def code_panel(lines, active_line, heading='Reference implementation'):
-    st.markdown(f'**{heading}**')
-    rendered = []
-    for i, line in enumerate(lines):
-        cls = 'code-line active' if i == active_line else 'code-line'
-        rendered.append(
-            f'<div class="{cls}"><span style="display:inline-block;width:25px;color:#93A0AC">{i+1:>2}</span>{html.escape(line)}</div>')
-    st.markdown('<div style="background:#FBFCFD;border:1px solid #E5E9ED;border-radius:10px;padding:10px 8px;overflow-x:auto">' +
-                ''.join(rendered) + '</div>', unsafe_allow_html=True)
-
-
-def matching_source_line(code, algorithm, conceptual_line):
-    source = code.splitlines()
-    patterns = {
-        'quick_sort': {2: ('pivot',), 3: ('< pivot', '<= pivot', 'if x <', 'if x <='), 4: ('>= pivot', '> pivot', 'if x >'), 5: ('return', 'quick_sort', 'f(lo)', 'merge')},
-        'merge_sort': {2: ('mid', 'middle'), 3: ('left', '[:mid', '[:middle'), 4: ('right', '[mid:', '[middle:'), 5: ('merge', 'return')},
-        'bubble_sort': {1: ('for',), 2: ('if', '>'), 3: ('swap', '],', '=')},
-        'insertion_sort': {1: ('for',), 2: ('current', 'key'), 3: ('position', 'while'), 4: ('values[', 'arr['), 6: ('current', 'key')},
-        'binary_search': {2: ('mid', 'middle'), 3: ('==',), 5: ('< target', '<'), 6: ('low',), 8: ('high',)},
-        'linear_search': {0: ('for', 'enumerate'), 1: ('==',), 2: ('return',)},
-    }
-    options = patterns.get(algorithm, {}).get(conceptual_line, ())
-    for i, line in enumerate(source):
-        if any(token in line for token in options):
-            return i
-    return None
-
-
-def draw_recursion_tree(algorithm, values):
-    nodes, edges = recursion_tree(algorithm, values)
-    if not nodes:
-        return
-    levels = {}
-    for node in nodes:
-        levels.setdefault(node['depth'], []).append(node)
-    max_width = max(len(group) for group in levels.values())
-    fig, ax = plt.subplots(figsize=(10, max(2.8, len(levels) * 1.15)))
-    positions = {}
-    for depth, group in levels.items():
-        width = len(group)
-        for index, node in enumerate(group):
-            x = (index + 0.5) / width
-            y = -depth
-            positions[node['id']] = (x, y)
-    for parent, child in edges:
-        x1, y1 = positions[parent]
-        x2, y2 = positions[child]
-        ax.plot([x1, x2], [y1, y2], color='#C8D2D9', linewidth=1.5, zorder=1)
-    for node in nodes:
-        x, y = positions[node['id']]
-        ax.text(x, y, node['label'], ha='center', va='center', fontsize=8,
-                bbox=dict(boxstyle='round,pad=.55', facecolor='#EEF4F1' if node['depth'] else '#DDEBE5', edgecolor='#B7CEC3'), zorder=2)
-    ax.set_xlim(0, 1)
-    ax.set_ylim(-max(levels) - .7, .7)
-    ax.axis('off')
-    fig.tight_layout()
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
-
-
-def render_trace(algorithm, values, target=None):
-    if algorithm in ('binary_search', 'linear_search'):
-        events = search_events(algorithm, values, int(target))
-    else:
-        events = sorting_trace(algorithm, values)
-    if not events:
-        st.info('No steps were generated for this input.')
-        return
-    if st.session_state.trace_step >= len(events):
-        st.session_state.trace_step = len(events) - 1
-    interval = st.session_state.animation_interval
-
-    @st.fragment(run_every=interval if st.session_state.is_playing else None)
-    def player():
-        total = len(events)
-        step = min(st.session_state.trace_step, total - 1)
-        event = events[step]
-        st.markdown(
-            f'<div class="algo-card"><div class="algo-step">{event["action"]} · Step {step+1} of {total}</div><h3 style="margin:.35rem 0 .2rem">{html.escape(event["explanation"])}</h3><div class="small-muted">{html.escape(event["action"])} · Animation is deliberately paced so each operation is easy to follow.</div></div>', unsafe_allow_html=True)
-        st.progress((step + 1) / total)
-        fig = plot_array(event, f'Step {step+1} · {event["action"]}')
-        st.pyplot(fig, use_container_width=True)
-        plt.close(fig)
-        st.markdown('<div class="small-muted"><span class="legend-dot" style="background:#D69E36"></span>Pivot&nbsp;&nbsp; <span class="legend-dot" style="background:#5487B8"></span>Compared&nbsp;&nbsp; <span class="legend-dot" style="background:#D97757"></span>Swapped&nbsp;&nbsp; <span class="legend-dot" style="background:#4E927B"></span>Selected / active</div>', unsafe_allow_html=True)
-        code_lines = ALGORITHM_CODE[algorithm]
-        conceptual_line = min(max(event['line'], 0), len(code_lines)-1)
-        code_panel(code_lines, conceptual_line, 'Step-by-step reference code')
-        st.caption(LINE_MEANINGS[algorithm][conceptual_line] if conceptual_line < len(
-            LINE_MEANINGS[algorithm]) else event['explanation'])
-        if st.session_state.recognized_code and st.session_state.recognized_algorithm == algorithm:
-            source_line = matching_source_line(
-                st.session_state.recognized_code, algorithm, conceptual_line)
-            with st.expander('Relate this step to the code you submitted'):
-                if source_line is not None:
-                    st.markdown(
-                        f'Your submitted code · matching line {source_line+1}')
-                    submitted = st.session_state.recognized_code.splitlines()
-                    code_panel(submitted, source_line, 'Your submitted code')
-                else:
-                    st.write('This operation does not have a clear one-to-one line match in your submitted implementation. The highlighted reference code shows the equivalent algorithmic operation.')
-                    st.code(st.session_state.recognized_code,
-                            language='python')
-        controls = st.columns([1, 1, 1.25, 1, 1.4])
-        if controls[0].button('← Back', disabled=step == 0, use_container_width=True, key=f'back_{algorithm}'):
-            st.session_state.trace_step = step - 1
-            st.session_state.is_playing = False
-            st.rerun()
-        if controls[1].button('Next →', disabled=step >= total-1, use_container_width=True, key=f'next_{algorithm}'):
-            st.session_state.trace_step = step + 1
-            st.session_state.is_playing = False
-            st.rerun()
-        if controls[2].button('Pause' if st.session_state.is_playing else '▶ Play', use_container_width=True, key=f'play_{algorithm}'):
-            st.session_state.is_playing = not st.session_state.is_playing
-            st.rerun()
-        if controls[3].button('Restart', use_container_width=True, key=f'restart_{algorithm}'):
-            st.session_state.trace_step = 0
-            st.session_state.is_playing = False
-            st.rerun()
-        speed = controls[4].selectbox('Playback speed', ['Slow · 2.4 sec', 'Relaxed · 1.6 sec', 'Normal · 1.1 sec'], index=['Slow · 2.4 sec', 'Relaxed · 1.6 sec', 'Normal · 1.1 sec'].index(
-            {'2.4s': 'Slow · 2.4 sec', '1.6s': 'Relaxed · 1.6 sec', '1.1s': 'Normal · 1.1 sec'}.get(st.session_state.animation_interval, 'Relaxed · 1.6 sec')), key=f'speed_{algorithm}')
-        speed_map = {'Slow · 2.4 sec': '2.4s',
-                     'Relaxed · 1.6 sec': '1.6s', 'Normal · 1.1 sec': '1.1s'}
-        if speed_map[speed] != st.session_state.animation_interval:
-            st.session_state.animation_interval = speed_map[speed]
-            st.rerun()
-        if st.session_state.is_playing and step >= total - 1:
-            st.session_state.is_playing = False
-        elif st.session_state.is_playing:
-            st.session_state.trace_step = step + 1
-    player()
-    return events
-
-
-samples = {
-    'Binary search': 'def search(arr, target):\n    low, high = 0, len(arr) - 1\n    while low <= high:\n        mid = (low + high) // 2\n        if arr[mid] == target:\n            return mid\n        if arr[mid] < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n    return -1',
-    'Linear search': 'def search(arr, target):\n    for index, value in enumerate(arr):\n        if value == target:\n            return index\n    return -1',
-    'Bubble sort': 'def sort_values(values):\n    arr = values.copy()\n    for i in range(len(arr)):\n        for j in range(len(arr) - i - 1):\n            if arr[j] > arr[j + 1]:\n                arr[j], arr[j + 1] = arr[j + 1], arr[j]\n    return arr',
-    'Insertion sort': 'def insertion_sort(values):\n    arr = values.copy()\n    for i in range(1, len(arr)):\n        current = arr[i]\n        j = i - 1\n        while j >= 0 and arr[j] > current:\n            arr[j + 1] = arr[j]\n            j -= 1\n        arr[j + 1] = current\n    return arr',
-    'Quick sort': 'def quick_sort(values):\n    if len(values) <= 1:\n        return values\n    pivot = values[-1]\n    left = [x for x in values[:-1] if x <= pivot]\n    right = [x for x in values[:-1] if x > pivot]\n    return quick_sort(left) + [pivot] + quick_sort(right)',
-    'Merge sort': 'def merge_sort(values):\n    if len(values) <= 1:\n        return values\n    middle = len(values) // 2\n    left = merge_sort(values[:middle])\n    right = merge_sort(values[middle:])\n    return merge(left, right)',
-}
-
-st.sidebar.markdown('## AlgoLens')
-st.sidebar.caption('Algorithm learning studio')
-page = st.sidebar.radio('Workspace', [
-                        'Recognize code', 'Explore algorithms', 'Model evaluation'], key='nav_page')
-st.sidebar.divider()
-st.sidebar.caption(
-    'A compact learning prototype. Predictions are suggestions, not proofs of algorithm identity.')
-st.sidebar.markdown('[Dataset documentation](DATASET.md)')
-
-if page == 'Recognize code':
-    title_block('CODE ANALYSIS', 'Recognize an algorithm',
-                'Paste a Python function to identify its likely algorithm, then explore how it works.')
-    st.write('')
-    left, right = st.columns([1.35, .8], gap='large')
-    with left:
-        sample = st.selectbox('Start with an example', [
-                              'Choose an example'] + list(samples))
-        code = st.text_area('Python source code', value=samples.get(
-            sample, ''), height=300, placeholder='Paste a Python function here…')
-        if st.button('Analyze code', type='primary', use_container_width=True):
-            try:
-                label, scores = predict_code(code, get_model())
-                st.session_state.recognized_algorithm = label
-                st.session_state.recognized_code = code
-                st.session_state.recognition_scores = scores
-                st.session_state.explore_algorithm = label
-                st.session_state.trace_step = 0
-                st.session_state.is_playing = False
-            except Exception as exc:
-                st.error(str(exc))
-    with right:
-        with st.container(border=True):
-            st.markdown('**What happens next**')
-            st.markdown('1. The classifier analyzes code patterns.\n2. It ranks the six supported algorithm classes.\n3. Explore opens a visual walkthrough of the predicted algorithm.')
-            st.caption(
-                'Supported: Binary Search, Linear Search, Bubble Sort, Insertion Sort, Quick Sort, Merge Sort.')
-    if st.session_state.recognized_algorithm and st.session_state.recognized_code == code:
-        label = st.session_state.recognized_algorithm
-        scores = st.session_state.get('recognition_scores')
-        st.divider()
-        st.markdown('### Recognition result')
-        st.success(f'Likely algorithm: **{label.replace("_", " ").title()}**')
-        best_case, average_case, worst_case = CASE_COMPLEXITY[label]
-        c1, c2, c3 = st.columns(3)
-        c1.metric('Best-case time', best_case)
-        c2.metric('Average-case time', average_case)
-        c3.metric('Worst-case time', worst_case)
-        note = COMPLEXITY[label][3]
-        st.write(note)
-        if scores:
-            score_df = pd.DataFrame({'Algorithm': [k.replace('_', ' ').title() for k in scores], 'Decision score': list(
-                scores.values())}).sort_values('Decision score', ascending=True)
-            st.caption(
-                'Classifier decision scores; these are not calibrated probabilities.')
-            st.bar_chart(score_df.set_index('Algorithm'))
-        st.warning(
-            'This is a model prediction, not a proof. Unfamiliar implementations may be misclassified.')
-        st.button('Explore the predicted algorithm', type='primary',
-                  on_click=navigate_to_explore, args=(label,))
-
-elif page == 'Explore algorithms':
-    title_block('INTERACTIVE LEARNING', 'Explore an algorithm',
-                'Follow each operation, see the active values, and connect the animation to the code.')
-    labels = list(COMPLEXITY)
-    default_index = labels.index(
-        st.session_state.recognized_algorithm) if st.session_state.recognized_algorithm in labels else 0
-    algorithm = st.selectbox('Choose an algorithm', labels, index=default_index,
-                             format_func=lambda x: x.replace('_', ' ').title(), key='explore_algorithm')
-    if st.session_state.recognized_algorithm:
-        st.caption(
-            f'Your most recent recognition result: {st.session_state.recognized_algorithm.replace("_", " ").title()}')
-    intros = {
-        'binary_search': 'Binary search works on sorted input. It checks the middle item and discards the half that cannot contain the target.',
-        'linear_search': 'Linear search checks items in order and stops as soon as it finds the target.',
-        'bubble_sort': 'Bubble sort compares neighboring values and swaps an out-of-order pair. Repeated passes move large values toward the end.',
-        'insertion_sort': 'Insertion sort grows a sorted section from left to right, inserting each next value into its correct position.',
-        'quick_sort': 'Quick sort selects a pivot, partitions values around it, and recursively sorts the smaller sections.',
-        'merge_sort': 'Merge sort divides the list into halves, sorts each half, and merges the sorted halves back together.',
-    }
-    st.markdown(
-        f'<div class="algo-card"><div class="algo-step">Algorithm overview</div><div style="font-size:1.05rem;font-weight:600;margin-top:6px">{intros[algorithm]}</div></div>', unsafe_allow_html=True)
-    st.write('')
-    default_numbers = '2, 5, 8, 12, 16, 23, 38' if algorithm in (
-        'binary_search', 'linear_search') else '8, 3, 6, 2, 9, 1, 5'
-    col1, col2 = st.columns([1.5, .7])
-    with col1:
-        raw = st.text_input('Input values · comma-separated',
-                            default_numbers, key=f'input_{algorithm}')
-    with col2:
-        target = st.number_input('Search target', value=16, step=1, key=f'target_{algorithm}', disabled=algorithm not in (
-            'binary_search', 'linear_search'))
-    try:
-        values = [int(x.strip()) for x in raw.split(',') if x.strip()]
-        if not values:
-            raise ValueError('Enter at least one whole number.')
-        if len(values) > 12:
-            raise ValueError(
-                'Use 12 or fewer values to keep the walkthrough readable.')
-        if algorithm == 'binary_search' and values != sorted(values):
-            st.warning(
-                'Binary search requires sorted input. The demonstration will use the sorted values.')
-            values = sorted(values)
-        trace_signature = (algorithm, tuple(values), int(
-            target) if algorithm in ('binary_search', 'linear_search') else None)
-        if st.session_state.get('trace_signature') != trace_signature:
-            st.session_state.trace_signature = trace_signature
-            st.session_state.trace_step = 0
-            st.session_state.is_playing = False
-        if algorithm == 'quick_sort':
-            with st.expander('Choose a pivot for the first partition'):
-                pivot_choice = st.selectbox(
-                    'First pivot value', values, index=len(values)-1, key='pivot_choice')
-                st.caption(
-                    f'The teaching trace uses {pivot_choice} as the first pivot. Pivot choice affects the shape and efficiency of Quick Sort.')
-                if pivot_choice != values[-1]:
-                    adjusted = values.copy()
-                    adjusted.remove(pivot_choice)
-                    adjusted.append(pivot_choice)
-                    st.caption(
-                        'For this demonstration, the chosen pivot is moved to the final position before partitioning.')
-                    values = adjusted
-            pivot_signature = (algorithm, tuple(values), pivot_choice)
-            if st.session_state.get('pivot_signature') != pivot_signature:
-                st.session_state.pivot_signature = pivot_signature
-                st.session_state.trace_step = 0
-                st.session_state.is_playing = False
-        if algorithm in ('quick_sort', 'merge_sort'):
-            with st.expander('Recursion tree · see how the problem breaks down'):
-                st.caption(
-                    'Each node represents a smaller subproblem. Quick Sort partitions around a pivot; Merge Sort splits the list into halves.')
-                draw_recursion_tree(algorithm, values)
-        st.markdown('### Step-by-step walkthrough')
-        events = render_trace(algorithm, values, target)
-        st.markdown('### Predict the next operation')
-        current_step = min(st.session_state.trace_step, len(events) - 1)
-        if current_step < len(events) - 1:
-            next_event = events[current_step + 1]
-            possible_actions = list(dict.fromkeys(
-                ['Compare', 'Swap', 'Select pivot', 'Partition', 'Divide', 'Merge', 'Insert value', 'Search next position', 'Finish']))
-            expected_action = next_event['action']
-            normalized = 'Compare' if 'Compare' in expected_action or 'Inspect' in expected_action or 'Check' in expected_action else 'Swap' if 'Swap' in expected_action else 'Select pivot' if 'pivot' in expected_action.lower(
-            ) else 'Partition' if 'Partition' in expected_action or 'Place pivot' in expected_action else 'Divide' if 'Divide' in expected_action or 'Prepare' in expected_action else 'Merge' if 'Merge' in expected_action else 'Insert value' if 'Insert' in expected_action else 'Search next position' if 'Discard' in expected_action else 'Finish' if expected_action in ('Complete', 'Found', 'Not found') else expected_action
-            quiz_answer = st.selectbox(
-                'What do you think happens next?', possible_actions, key=f'next_quiz_{algorithm}')
-            if st.button('Check prediction', key=f'next_quiz_check_{algorithm}'):
-                if quiz_answer == normalized:
-                    st.success(
-                        f'Correct. Next: {next_event["action"]}. {next_event["explanation"]}')
-                else:
-                    st.error(
-                        f'Not quite. The next operation is {next_event["action"].lower()}: {next_event["explanation"]}')
-            if 1 <= len(next_event.get('compare', ())) <= 2:
-                import itertools
-                compare_count = len(next_event['compare'])
-                candidates = list(itertools.combinations(
-                    range(len(values)), compare_count))
-                candidate_labels = [', '.join(
-                    f'index {i} (value {events[current_step]["values"][i]})' for i in candidate) for candidate in candidates]
-                expected_label = ', '.join(
-                    f'index {i} (value {events[current_step]["values"][i]})' for i in next_event['compare'])
-                picked = st.selectbox('Which element(s) will be examined next?',
-                                      candidate_labels, key=f'compare_quiz_{algorithm}_{current_step}')
-                if st.button('Check selected element(s)', key=f'compare_check_{algorithm}_{current_step}'):
-                    if picked == expected_label:
-                        st.success(
-                            f'Correct. {expected_label} is the next position involved.')
-                    else:
-                        st.error(
-                            f'Not quite. The next operation involves {expected_label}. Follow the highlighted index labels in the graph.')
+def draw_array(step: dict, sorting: bool):
+    values = step["array"]
+    active = set(step.get("active", []))
+    found = set(step.get("found", []))
+    sorted_idx = set(step.get("sorted", []))
+    colors = []
+    for i in range(len(values)):
+        if i in found:
+            colors.append("#34d399")
+        elif i in active:
+            colors.append("#fbbf24")
+        elif sorting and i in sorted_idx:
+            colors.append("#64748b")
         else:
-            st.success(
-                'The walkthrough is complete. Restart to practice predicting the steps again.')
-    except ValueError as exc:
-        st.error(str(exc))
+            colors.append("#38bdf8")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=list(range(len(values))),
+        y=[0] * len(values),
+        mode="lines",
+        line=dict(color="#26364d", width=3),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+    fig.add_trace(go.Scatter(
+        x=list(range(len(values))),
+        y=[0] * len(values),
+        mode="markers+text",
+        marker=dict(size=54, color=colors, line=dict(color="#dce8f5", width=2)),
+        text=[str(value) for value in values],
+        textposition="middle center",
+        textfont=dict(color="#07111f", size=15, family="DM Sans"),
+        customdata=list(range(len(values))),
+        hovertemplate="Index %{customdata}<br>Value %{text}<extra></extra>",
+        showlegend=False,
+    ))
+    fig.add_trace(go.Scatter(
+        x=list(range(len(values))),
+        y=[-0.58] * len(values),
+        mode="text",
+        text=[f"Index {i}" for i in range(len(values))],
+        textfont=dict(color="#94a3b8", size=11),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+    fig.update_layout(
+        height=260,
+        margin=dict(l=15, r=15, t=25, b=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#cbd5e1"),
+        xaxis=dict(visible=False, range=[-0.7, len(values) - 0.3]),
+        yaxis=dict(visible=False, range=[-0.9, 0.65], fixedrange=True),
+        showlegend=False,
+    )
+    return fig
 
-    st.divider()
-    st.markdown('### Complexity explorer')
-    explanation = COMPLEXITY[algorithm][3]
-    best_case, average_case, worst_case = CASE_COMPLEXITY[algorithm]
-    c1, c2, c3 = st.columns(3)
-    c1.metric('Best-case time', best_case)
-    c2.metric('Average-case time', average_case)
-    c3.metric('Worst-case time', worst_case)
-    st.write(explanation)
-    n = st.slider('Compare estimated growth as input size increases', min_value=10,
-                  max_value=500, value=100, step=10, key=f'complexity_n_{algorithm}')
-    sizes = list(range(10, n+1, 10))
-    if algorithm in ('binary_search',):
-        ops = [math.log2(x) for x in sizes]
-    elif algorithm == 'linear_search':
-        ops = [x for x in sizes]
-    elif algorithm == 'bubble_sort':
-        ops = [x*x for x in sizes]
-    elif algorithm == 'insertion_sort':
-        ops = [x*x for x in sizes]
-    elif algorithm == 'quick_sort':
-        ops = [x*math.log2(x) for x in sizes]
-    else:
-        ops = [x*math.log2(x) for x in sizes]
-    fig, ax = plt.subplots(figsize=(8, 2.8))
-    ax.plot(sizes, ops, linewidth=2.5, color='#397C68')
-    ax.fill_between(sizes, ops, alpha=.10, color='#397C68')
-    ax.set_xlabel('Input size (n)')
-    ax.set_ylabel('Relative operation growth')
-    ax.grid(alpha=.2)
-    for spine in ('top', 'right'):
-        ax.spines[spine].set_visible(False)
-    fig.tight_layout()
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
-    st.caption('This chart illustrates asymptotic growth, not measured runtime. Actual runtime depends on implementation, input order, and hardware.')
 
+def draw_graph(step: dict, algorithm: str):
+    graph = nx.Graph()
+    for u, neighbors in SAMPLE_GRAPH.items():
+        for v, w in neighbors.items(): graph.add_edge(u, v, weight=w)
+    pos = {"A":(0,2),"B":(2,3),"C":(2,1),"D":(4,3),"E":(4,1),"F":(6,2),"G":(2,5),"H":(4,5)}
+    path = step.get("path", [])
+    path_edges = {tuple(sorted((path[i],path[i+1]))) for i in range(len(path)-1)}
+    edge_x=[]; edge_y=[]; edge_text=[]; path_x=[]; path_y=[]
+    for u,v,data in graph.edges(data=True):
+        target = path_x if tuple(sorted((u,v))) in path_edges else edge_x
+        target.extend([pos[u][0],pos[v][0],None])
+        (path_y if target is path_x else edge_y).extend([pos[u][1],pos[v][1],None])
+        edge_text.append((u,v,data['weight']))
+    fig=go.Figure()
+    fig.add_trace(go.Scatter(x=edge_x,y=edge_y,mode="lines",line=dict(width=2,color="#34445e"),hoverinfo="skip",showlegend=False))
+    fig.add_trace(go.Scatter(x=path_x,y=path_y,mode="lines",line=dict(width=5,color="#34d399"),hoverinfo="skip",showlegend=False))
+    ex=[];ey=[];et=[]
+    for u,v,w in edge_text:
+        ex.append((pos[u][0]+pos[v][0])/2);ey.append((pos[u][1]+pos[v][1])/2);et.append(str(w))
+    fig.add_trace(go.Scatter(x=ex,y=ey,mode="text",text=et,textposition="middle center",textfont=dict(color="#d8e2f0",size=12),hoverinfo="skip",showlegend=False))
+    current=step.get("current"); visited=set(step.get("visited",[])); frontier=set(step.get("frontier",[]));
+    node_colors=[];node_sizes=[];texts=[]
+    for node in graph.nodes:
+        if node == current: node_colors.append("#fbbf24");node_sizes.append(34)
+        elif node in path: node_colors.append("#34d399");node_sizes.append(30)
+        elif node in frontier: node_colors.append("#a78bfa");node_sizes.append(29)
+        elif node in visited: node_colors.append("#64748b");node_sizes.append(27)
+        else: node_colors.append("#38bdf8");node_sizes.append(27)
+        texts.append(f"Node {node}<br>Distance: {step.get('distances',{}).get(node,'—')}")
+    fig.add_trace(go.Scatter(x=[pos[n][0] for n in graph.nodes],y=[pos[n][1] for n in graph.nodes],mode="markers+text",text=list(graph.nodes),textposition="middle center",textfont=dict(color="#07111f",size=13,family="DM Sans",),marker=dict(size=node_sizes,color=node_colors,line=dict(width=2,color="#dce8f5")),hovertext=texts,hoverinfo="text",showlegend=False))
+    fig.update_layout(height=470,margin=dict(l=20,r=20,t=15,b=15),paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",xaxis=dict(visible=False),yaxis=dict(visible=False,scaleanchor="x",scaleratio=1),font=dict(color="#cbd5e1"))
+    return fig
+
+
+def animated_array_figure(steps, sorting):
+    first = draw_array(steps[0], sorting)
+    frames = []
+    slider_steps = []
+    for index, step in enumerate(steps):
+        frame_fig = draw_array(step, sorting)
+        frames.append(go.Frame(data=frame_fig.data, name=str(index), layout=go.Layout(title_text=f"Step {index + 1} / {len(steps)} · {step['message']}")))
+        slider_steps.append({"label": str(index + 1), "method": "animate", "args": [[str(index)], {"mode": "immediate", "frame": {"duration": 0, "redraw": True}, "transition": {"duration": 0}}]})
+    first.frames = frames
+    first.update_layout(
+        title=f"Step 1 / {len(steps)} · {steps[0]['message']}",
+        updatemenus=[{"type": "buttons", "showactive": False, "x": 0.02, "y": 1.15, "buttons": [
+            {"label": "▶ Play", "method": "animate", "args": [None, {"fromcurrent": True, "frame": {"duration": 650, "redraw": True}, "transition": {"duration": 250}}]},
+            {"label": "Ⅱ Pause", "method": "animate", "args": [[None], {"mode": "immediate", "frame": {"duration": 0, "redraw": False}, "transition": {"duration": 0}}]},
+        ]}],
+        sliders=[{"active": 0, "currentvalue": {"prefix": "Trace step: "}, "pad": {"t": 35}, "steps": slider_steps}],
+    )
+    return first
+
+
+def animated_graph_figure(steps, algorithm):
+    first = draw_graph(steps[0], algorithm)
+    frames = []
+    slider_steps = []
+    for index, step in enumerate(steps):
+        frame_fig = draw_graph(step, algorithm)
+        frames.append(go.Frame(data=frame_fig.data, name=str(index), layout=go.Layout(title_text=f"Step {index + 1} / {len(steps)} · {step['message']}")))
+        slider_steps.append({"label": str(index + 1), "method": "animate", "args": [[str(index)], {"mode": "immediate", "frame": {"duration": 0, "redraw": True}, "transition": {"duration": 0}}]})
+    first.frames = frames
+    first.update_layout(
+        title=f"Step 1 / {len(steps)} · {steps[0]['message']}",
+        updatemenus=[{"type": "buttons", "showactive": False, "x": 0.02, "y": 1.15, "buttons": [
+            {"label": "▶ Play", "method": "animate", "args": [None, {"fromcurrent": True, "frame": {"duration": 800, "redraw": True}, "transition": {"duration": 250}}]},
+            {"label": "Ⅱ Pause", "method": "animate", "args": [[None], {"mode": "immediate", "frame": {"duration": 0, "redraw": False}, "transition": {"duration": 0}}]},
+        ]}],
+        sliders=[{"active": 0, "currentvalue": {"prefix": "Trace step: "}, "pad": {"t": 35}, "steps": slider_steps}],
+    )
+    return first
+
+
+if page == "Overview":
+    st.markdown("<div class='eyebrow'>Interactive computer science learning environment</div><div class='hero-title'>Understand the logic.<br><span style='color:#67e8f9'>See every step.</span></div>", unsafe_allow_html=True)
+    st.markdown("<p class='hero-sub'>Explore classic algorithms through visual execution traces, inspect how graph-search strategies expand a network, and experiment with a lightweight code-recognition model.</p>", unsafe_allow_html=True)
+    c1,c2,c3,c4=st.columns(4)
+    with c1: metric_card("Algorithms", "11", "Searching · sorting · graphs")
+    with c2: metric_card("Algorithm families", "3", "Arrays, sorting, graph traversal")
+    with c3: metric_card("Graph methods", "4", "BFS, DFS, Dijkstra, A*")
+    with c4: metric_card("Recognition", "11 classes", "AST + Linear SVM")
+    st.write("")
+    left,right=st.columns([1.25,1],gap="large")
+    with left:
+        st.markdown("<div class='panel'><div class='eyebrow'>01 / Explore</div><h3>Algorithm Explorer</h3><p class='small-muted'>Move through deterministic execution traces. Compare how different strategies inspect values, reorder data, or expand graph nodes.</p><span class='tag'>Step controls</span><span class='tag'>Node states</span><span class='tag'>Array animation</span><span class='tag'>Path highlighting</span></div>",unsafe_allow_html=True)
+        st.write("")
+        st.markdown("<div class='panel'><div class='eyebrow'>02 / Recognize</div><h3>Code Recognition</h3><p class='small-muted'>Submit Python code and inspect structural clues used to identify its algorithm. The analyzer ignores comments, docstrings, and user-defined identifiers.</p><span class='tag'>AST structure</span><span class='tag'>Identifier normalization</span><span class='tag'>Linear SVM</span></div>",unsafe_allow_html=True)
+    with right:
+        st.markdown("<div class='panel'><div class='eyebrow'>03 / Understand</div><h3>Complexity Table</h3><p class='small-muted'>Compare asymptotic growth and practical trade-offs. Learn why an algorithm that is fast on a small input may scale poorly.</p><span class='tag'>Big-O</span><span class='tag'>Best / average / worst</span></div>",unsafe_allow_html=True)
+        st.write("")
+        st.markdown("<div class='panel'><div class='eyebrow'>Design principle</div><h3>Algorithms first, ML second</h3><p class='small-muted'>The central experience is learning and experimentation. Machine learning supports code discovery rather than replacing the algorithm content.</p></div>",unsafe_allow_html=True)
+    st.markdown("### Explore the algorithm families")
+    a,b,c=st.columns(3)
+    with a: st.markdown("<div class='panel'><h4>⌕ Array searching</h4><p class='small-muted'>Linear and Binary Search</p></div>",unsafe_allow_html=True)
+    with b: st.markdown("<div class='panel'><h4>↗ Sorting</h4><p class='small-muted'>Bubble, Selection, Insertion, Merge, Quick</p></div>",unsafe_allow_html=True)
+    with c: st.markdown("<div class='panel'><h4>◎ Graph search</h4><p class='small-muted'>BFS, DFS, Dijkstra, A*</p></div>",unsafe_allow_html=True)
+
+elif page == "Algorithm Explorer":
+    st.markdown("<div class='eyebrow'>Interactive execution</div><h1>Algorithm Explorer</h1><p class='hero-sub'>Choose an algorithm, configure an input, and inspect its execution one operation at a time.</p>",unsafe_allow_html=True)
+    family=st.radio("Algorithm family",["Array Search","Sorting","Graph Search"],horizontal=True)
+    options={"Array Search":ARRAY_SEARCH,"Sorting":SORTS,"Graph Search":GRAPH_SEARCH}[family]
+    selected=st.selectbox("Algorithm",options)
     st.divider()
-    st.markdown('### Check your understanding')
-    if algorithm == 'quick_sort':
-        correct = values[-1]
-        choices = list(dict.fromkeys(values))
-        answer = st.selectbox(
-            'In this walkthrough, which value is selected as the first pivot?', choices, key='quiz_pivot')
-        if st.button('Check my answer', key='check_pivot'):
-            if answer == correct:
-                st.success(
-                    f'Correct. {correct} is selected as the pivot for the first partition.')
-            else:
-                st.error(
-                    f'Not quite. The first pivot in this trace is {correct}. A pivot is used to divide the other values into two groups.')
+    if family == "Graph Search":
+        c1,c2,c3=st.columns([1,1,2])
+        with c1: start=st.selectbox("Start node",list(SAMPLE_GRAPH),index=0)
+        with c2: goal=st.selectbox("Goal node",list(SAMPLE_GRAPH),index=5)
+        with c3: st.caption("Weighted undirected sample graph · edge labels show costs · A* uses a scaled Euclidean-distance heuristic.")
+        if st.button("Generate execution trace",type="primary") or "graph_steps" not in st.session_state or st.session_state.get("graph_key") != (selected,start,goal):
+            st.session_state.graph_steps=graph_trace(selected,SAMPLE_GRAPH,start,goal)
+            st.session_state.graph_key=(selected,start,goal)
+            st.session_state.graph_index=0
+        steps=st.session_state.graph_steps
+        idx=st.session_state.get("graph_index",0)
+        controls=st.columns([1,1,1,5])
+        with controls[0]:
+            if st.button("← Previous",disabled=idx==0): st.session_state.graph_index=max(0,idx-1);st.rerun()
+        with controls[1]:
+            if st.button("Next →",disabled=idx>=len(steps)-1): st.session_state.graph_index=min(len(steps)-1,idx+1);st.rerun()
+        with controls[2]:
+            if st.button("↺ Reset"): st.session_state.graph_index=0;st.rerun()
+        with controls[3]: st.caption(f"Step {idx+1} of {len(steps)}")
+        step=steps[idx]
+        st.progress((idx+1)/len(steps))
+        graph_col,info_col=st.columns([1.6,1],gap="large")
+        with graph_col:
+            st.plotly_chart(draw_graph(step,selected),use_container_width=True,config={"displayModeBar":False})
+            st.markdown("<span class='tag'>● Current</span><span class='tag'>● Frontier</span><span class='tag'>● Visited</span><span class='tag'>● Final path</span>",unsafe_allow_html=True)
+        with info_col:
+            st.markdown("<div class='panel'><div class='eyebrow'>Current operation</div><h3>"+step["message"]+"</h3><p class='small-muted'>The highlighted node is the current node. Frontier nodes are candidates waiting to be explored.</p></div>",unsafe_allow_html=True)
+            st.write("")
+            st.metric("Visited nodes",len(step.get("visited",[])))
+            st.metric("Frontier size",len(step.get("frontier",[])))
+            if step.get("path"):
+                st.success(" → ".join(step["path"]))
+            st.markdown("**Algorithm behavior**")
+            notes={"Breadth-First Search":"Uses a FIFO queue and explores the graph layer by layer. Finds a shortest path by edge count in an unweighted graph.","Depth-First Search":"Uses a LIFO stack to follow one branch before backtracking. Useful for reachability and structural exploration.","Dijkstra's":"Uses a min-priority queue to repeatedly finalize the closest unsettled node. Assumes non-negative edge weights.","A* Search":"Prioritizes nodes by f(n) = g(n) + h(n), combining the known path cost with a heuristic estimate to the goal."}
+            st.info(notes[selected])
     else:
-        question = 'What does this algorithm do next?' if algorithm in (
-            'binary_search', 'linear_search') else 'What is the main operation this algorithm repeats?'
-        options = {
-            'binary_search': ['Check the middle of the remaining range', 'Swap every adjacent pair', 'Merge two sorted lists'],
-            'linear_search': ['Check the next item in order', 'Discard half the list', 'Choose a pivot'],
-            'bubble_sort': ['Compare neighboring values', 'Split the list in half', 'Select a pivot'],
-            'insertion_sort': ['Insert the next value into the sorted prefix', 'Compare the middle item', 'Merge two halves'],
-            'merge_sort': ['Divide into halves, then merge sorted parts', 'Swap neighboring values only', 'Search from left to right'],
-        }
-        correct = options[algorithm][0]
-        answer = st.radio(
-            question, options[algorithm], key=f'quiz_{algorithm}')
-        if st.button('Check my answer', key=f'check_{algorithm}'):
-            if answer == correct:
-                st.success(
-                    'Correct. You identified the central operation of this algorithm.')
-            else:
-                st.error(
-                    f'Not quite. {correct}. Review the walkthrough above and try again.')
+        c1,c2=st.columns([2,1])
+        with c1: raw=st.text_input("Input values (comma-separated)","8, 3, 6, 2, 9, 1, 5")
+        with c2:
+            target=st.number_input("Target value",value=6,step=1,disabled=family!="Array Search")
+        try:
+            values=[int(x.strip()) for x in raw.split(",") if x.strip()]
+            if not values or len(values)>18: raise ValueError("Enter between 1 and 18 integer values.")
+        except ValueError as exc:
+            st.error(str(exc));values=[8,3,6,2,9,1,5]
+        if family=="Array Search" and selected=="Binary Search": st.caption("Binary Search requires sorted data. The trace automatically displays the sorted input.")
+        key=(family,selected,tuple(values),int(target))
+        if st.button("Build execution trace",type="primary") or "array_steps" not in st.session_state or st.session_state.get("array_key")!=key:
+            st.session_state.array_steps=sorting_trace(selected,values) if family=="Sorting" else array_search_trace(selected,values,int(target))
+            st.session_state.array_key=key;st.session_state.array_index=0
+        steps=st.session_state.array_steps;idx=st.session_state.get("array_index",0)
+        controls=st.columns([1,1,1,5])
+        with controls[0]:
+            if st.button("← Previous",disabled=idx==0,key="arrprev"): st.session_state.array_index=max(0,idx-1);st.rerun()
+        with controls[1]:
+            if st.button("Next →",disabled=idx>=len(steps)-1,key="arrnext"): st.session_state.array_index=min(len(steps)-1,idx+1);st.rerun()
+        with controls[2]:
+            if st.button("↺ Reset",key="arrreset"): st.session_state.array_index=0;st.rerun()
+        with controls[3]: st.caption(f"Step {idx+1} of {len(steps)}")
+        step=steps[idx];st.progress((idx+1)/len(steps))
+        visual,detail=st.columns([1.6,1],gap="large")
+        with visual: st.plotly_chart(draw_array(step,family=="Sorting"),use_container_width=True,config={"displayModeBar":False})
+        with detail:
+            st.markdown("<div class='panel'><div class='eyebrow'>Current operation</div><h3>"+step["message"]+"</h3><p class='small-muted'>Yellow indicates the active comparison or operation. Green marks a successful search result.</p></div>",unsafe_allow_html=True)
+            st.markdown("**How it works**")
+            descriptions={"Linear Search":"Checks elements sequentially until the target is found or the array ends.","Binary Search":"Compares the midpoint and discards half of the remaining sorted search interval.","Bubble Sort":"Compares adjacent values and swaps out-of-order pairs, moving large values toward the end.","Selection Sort":"Selects the smallest remaining value and places it at the next sorted position.","Insertion Sort":"Builds a sorted prefix by shifting larger values and inserting the next value.","Merge Sort":"Recursively divides the array, then merges sorted subarrays.","Quick Sort":"Partitions values around a pivot, then recursively sorts the partitions."}
+            st.info(descriptions[selected])
+
+elif page == "Code Recognition":
+    st.markdown("<div class='eyebrow'>Learn from your code</div><h1>Code Recognition</h1><p class='hero-sub'>Paste a Python algorithm to identify it, compare its time complexity, and watch how it works.</p>",unsafe_allow_html=True)
+    st.caption("Your code is analyzed but not executed. The visual trace uses the detected algorithm with the input you choose.")
+    default="""def binary_search(values, target):
+    low, high = 0, len(values) - 1
+    while low <= high:
+        mid = (low + high) // 2
+        if values[mid] == target:
+            return mid
+        elif values[mid] < target:
+            low = mid + 1
+        else:
+            high = mid - 1
+    return -1"""
+    code=st.text_area("Paste Python code",default,height=250)
+    if st.button("Recognize algorithm",type="primary",use_container_width=True):
+        if len(code.strip())<20:
+            st.error("Please enter a longer Python snippet.")
+        else:
+            try:
+                result=analyze_code(code)
+                st.session_state.prediction=result
+                st.session_state.recognized_code=code
+            except Exception as exc:
+                st.error(f"Could not analyze this code: {exc}")
+    if "prediction" in st.session_state:
+        result=st.session_state.prediction
+        label=result["prediction"]
+        complexity=estimate_complexity(st.session_state.get("recognized_code", code), label)
+        st.markdown("<div class='panel'><div class='eyebrow'>Identified algorithm</div><div style='font-family:Space Grotesk;font-size:2.1rem;font-weight:700;color:#67e8f9'>"+label+"</div></div>",unsafe_allow_html=True)
+        st.markdown("### Time complexity")
+        best_col,avg_col,worst_col=st.columns(3)
+        with best_col: st.metric("Best case",complexity["best"])
+        with avg_col: st.metric("Average case",complexity["average"])
+        with worst_col: st.metric("Worst case",complexity["worst"])
+        st.caption(complexity["note"])
+        st.divider()
+        st.markdown("### See how it works")
+        if label in SORTS or label in ARRAY_SEARCH:
+            input_col,target_col=st.columns([2,1])
+            with input_col: trace_raw=st.text_input("Input values (comma-separated)","8, 3, 6, 2, 9, 1, 5",key="recognition_trace_values")
+            with target_col: trace_target=st.number_input("Search target",value=6,step=1,key="recognition_trace_target",disabled=label not in ARRAY_SEARCH)
+            try:
+                trace_values=[int(item.strip()) for item in trace_raw.split(",") if item.strip()]
+                if not trace_values or len(trace_values)>18: raise ValueError("Enter between 1 and 18 integer values.")
+                trace_steps=sorting_trace(label,trace_values) if label in SORTS else array_search_trace(label,trace_values,int(trace_target))
+                st.plotly_chart(animated_array_figure(trace_steps,label in SORTS),use_container_width=True,config={"displayModeBar":False})
+            except ValueError as exc:
+                st.error(str(exc))
+        else:
+            graph_col1,graph_col2=st.columns(2)
+            with graph_col1: trace_start=st.selectbox("Start node",list(SAMPLE_GRAPH),index=0,key="recognition_graph_start")
+            with graph_col2: trace_goal=st.selectbox("Goal node",list(SAMPLE_GRAPH),index=5,key="recognition_graph_goal")
+            trace_steps=graph_trace(label,SAMPLE_GRAPH,trace_start,trace_goal)
+            st.plotly_chart(animated_graph_figure(trace_steps,label),use_container_width=True,config={"displayModeBar":False})
+
+elif page == "Complexity Table":
+    st.markdown("<div class='eyebrow'>Performance fundamentals</div><h1>Complexity Table</h1><p class='hero-sub'>Compare asymptotic growth and understand the trade-offs behind common algorithm choices.</p>",unsafe_allow_html=True)
+    st.dataframe(complexity_table(),use_container_width=True,hide_index=True)
+    st.caption("Graph algorithms assume adjacency-list representations. Dijkstra assumes non-negative weights. A* performance depends strongly on the heuristic and problem structure.")
+    st.markdown("### Growth curves")
+    n=st.slider("Input size (n)",10,200,80,10)
+    x=list(range(1,n+1))
+    curves={"O(1)": [1]*n,"O(log n)": [__import__('math').log2(i) for i in x],"O(n)":x,"O(n log n)":[i*__import__('math').log2(i) for i in x],"O(n²)":[i*i for i in x]}
+    selected_curves=st.multiselect("Show growth classes",list(curves),default=["O(log n)","O(n)","O(n log n)","O(n²)"])
+    fig=go.Figure()
+    for label in selected_curves: fig.add_trace(go.Scatter(x=x,y=curves[label],mode="lines",name=label,line=dict(width=3)))
+    fig.update_layout(height=430,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",font=dict(color="#cbd5e1"),xaxis_title="Input size",yaxis_title="Relative operation growth",legend_title="Complexity",xaxis=dict(gridcolor="#1e293b"),yaxis=dict(gridcolor="#1e293b"))
+    st.plotly_chart(fig,use_container_width=True)
 
 else:
-    title_block('MODEL REPORT', 'Training and evaluation',
-                'Review how the classifier performs and where its predictions can go wrong.')
-    metrics_path = ROOT / 'results' / 'metrics.json'
-    image_path = ROOT / 'results' / 'confusion_matrix.png'
-    if metrics_path.exists():
-        metrics = json.loads(metrics_path.read_text(encoding='utf-8'))
-        st.markdown(
-            f'**Selected baseline:** `{metrics.get("selected_model", "Not available")}`')
-        st.markdown(
-            f'**Dataset:** {metrics["dataset"]["total_examples"]} examples · **Held-out test:** {metrics["dataset"]["test_examples"]} examples')
-        st.info(metrics['dataset']['data_note'])
-        rows = [{'Model': name, 'Accuracy': values['accuracy'], 'Macro F1': values['macro_f1'],
-                 'Weighted F1': values['weighted_f1']} for name, values in metrics['models'].items()]
-        st.dataframe(pd.DataFrame(rows),
-                     use_container_width=True, hide_index=True)
-        if image_path.exists():
-            st.image(str(image_path), caption='Held-out test confusion matrix',
-                     use_container_width=True)
-        st.caption('Results are from a grouped split of controlled examples. They are not evidence of performance on arbitrary code from the internet.')
-        st.markdown('**How to read the confusion matrix**')
-        st.write('Rows represent the true algorithm; columns represent the model prediction. Values on the diagonal are correct predictions. Off-diagonal values show which algorithms the model confuses.')
-    else:
-        st.info('No metrics found yet. Run `python src/generate_dataset.py` and `python src/train_model.py` from the project folder.')
+    st.markdown("<div class='eyebrow'>Project documentation</div><h1>About AlgoLens</h1><p class='hero-sub'>An interactive algorithms learning environment with an optional machine-learning code-recognition component.</p>",unsafe_allow_html=True)
+    st.markdown("### Architecture")
+    st.code("""AlgoLens/
+├── app.py                  # Streamlit interface and page routing
+├── src/
+│   ├── algorithms.py       # Deterministic execution-trace generators
+│   └── recognition.py      # AST normalization, structural analysis, training, inference
+├── data/
+│   ├── algorithm_samples.csv
+│   └── SOURCES.md
+├── models/
+│   └── classifier.joblib
+├── results/
+│   └── metrics.json
+├── tests/
+│   └── test_algorithms.py
+├── requirements.txt
+└── README.md""",language="text")
+    st.markdown("### Machine-learning methodology")
+    st.write("The recognition component parses Python with the built-in AST module. It removes function names, variable names, comments, and docstrings before extracting node patterns, operators, recursion, indexing, queue/stack operations, and priority-queue behavior. A LinearSVC model ranks candidate algorithms alongside transparent structural rules. The bundled reference corpus contains real implementation excerpts curated from TheAlgorithms/Python (MIT license), with a source URL and label for each sample. This is a small source-derived corpus, not a benchmark dataset; no held-out accuracy is reported.")
+    st.markdown("### Scope and limitations")
+    st.write("The visualizations are generated from independent algorithm implementations and controlled inputs; they do not execute arbitrary submitted code. The recognition model is a prototype trained on a small public-source reference corpus, so its predictions do not establish generalization to arbitrary independently authored code. The classifier is intentionally not presented with an accuracy figure because the available corpus is too small for a meaningful held-out evaluation. Graph examples use a fixed weighted sample network. A* uses half the Euclidean distance over the sample node layout as its heuristic, keeping the estimate conservative for the sample edge costs.")
+    st.markdown("### Reproducibility")
+    st.code("python -m venv .venv\nsource .venv/bin/activate  # macOS / Linux\npip install -r requirements.txt\npython -m src.recognition\nstreamlit run app.py",language="bash")
+    st.caption("For a Windows environment, activate the virtual environment with .venv\\Scripts\\activate.")

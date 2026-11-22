@@ -1,33 +1,32 @@
-import sys
-from pathlib import Path
 import unittest
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-from src.visualizations import trace_steps, search_trace
+from src.algorithms import array_search_trace, graph_trace, sorting_trace, SAMPLE_GRAPH
 
 
-class VisualizationTests(unittest.TestCase):
-    def test_bubble_sort_finishes_sorted(self):
-        self.assertEqual(trace_steps('bubble_sort', [4, 1, 3, 2])[-1], [1, 2, 3, 4])
-
-    def test_insertion_sort_finishes_sorted(self):
-        self.assertEqual(trace_steps('insertion_sort', [4, 1, 3, 2])[-1], [1, 2, 3, 4])
-
-    def test_quick_sort_finishes_sorted(self):
-        self.assertEqual(trace_steps('quick_sort', [4, 1, 3, 2])[-1], [1, 2, 3, 4])
-
-    def test_merge_sort_finishes_sorted(self):
-        self.assertEqual(trace_steps('merge_sort', [4, 1, 3, 2])[-1], [1, 2, 3, 4])
-
-    def test_binary_search_finds_target(self):
-        steps = search_trace('binary_search', [1, 3, 5, 7, 9], 7)
-        self.assertTrue(any(found for _, found in steps))
+class AlgorithmTraceTests(unittest.TestCase):
+    def test_sorting_algorithms_finish_sorted(self):
+        values = [7, 2, 9, 1, 5, 2]
+        for name in ["Bubble Sort", "Selection Sort", "Insertion Sort", "Merge Sort", "Quick Sort"]:
+            with self.subTest(name=name):
+                trace = sorting_trace(name, values)
+                self.assertEqual(trace[-1]["array"], sorted(values))
 
     def test_linear_search_finds_target(self):
-        steps = search_trace('linear_search', [9, 3, 7, 1], 7)
-        self.assertTrue(any(found for _, found in steps))
+        trace = array_search_trace("Linear Search", [4, 8, 2, 9], 2)
+        self.assertEqual(trace[-1]["found"], [2])
+
+    def test_binary_search_finds_target(self):
+        trace = array_search_trace("Binary Search", [4, 8, 2, 9], 8)
+        self.assertEqual(trace[-1]["found"], [2])
+
+    def test_graph_algorithms_find_a_path(self):
+        for name in ["Breadth-First Search", "Depth-First Search", "Dijkstra's", "A* Search"]:
+            with self.subTest(name=name):
+                trace = graph_trace(name, SAMPLE_GRAPH, "A", "F")
+                self.assertTrue(trace[-1]["path"])
+                self.assertEqual(trace[-1]["path"][0], "A")
+                self.assertEqual(trace[-1]["path"][-1], "F")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

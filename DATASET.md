@@ -1,43 +1,25 @@
-# AlgoLens dataset documentation
+# Dataset and recognition methodology
 
-## Dataset currently included
+AlgoLens uses a curated reference corpus of 15 real Python implementation excerpts across 11 algorithm categories. The excerpts are sourced from the MIT-licensed TheAlgorithms/Python repository. Every row in `data/algorithm_samples.csv` includes a sample ID, algorithm label, repository, original raw source URL, and license. See `data/SOURCES.md` for the source inventory and limitations.
 
-File: `data/processed/algorithm_samples.csv`
+The recognition pipeline does not depend on algorithm names in submitted code:
 
-- 240 examples total.
-- 6 labels, 40 examples per label.
-- 8 hand-written base templates per label.
-- 5 controlled variable-name/formatting variants per template.
-- Each row records a `template_group`, `source_type`, and `source` field.
+1. Python source is parsed with the standard-library `ast` module.
+2. Comments are absent from the AST, and function docstrings are removed.
+3. Function names, variable names, argument names, and ordinary attribute names are normalized. Selected behavioral APIs (such as `append`, `pop`, `popleft`, `heappop`, and `heappush`) are retained because their operations are meaningful structural evidence.
+4. AST node/operator patterns and structural counts are extracted, including loops, nested loops, recursion, indexed reads/writes, slices, comparisons, queue/stack operations, and priority-queue operations.
+5. A LinearSVC classifier ranks candidates. Transparent structural rules are combined with the model ranking to make the output more interpretable.
 
-All included code examples were written specifically for this project. They are original controlled examples, not third-party repository content and not an external benchmark dataset. This means the dataset is suitable for an initial pipeline demonstration but not enough to establish real-world algorithm-recognition performance.
+The visualizer is independent of the submitted-code classifier. It provides step-by-step reference traces for all 11 supported algorithms: Linear Search, Binary Search, Bubble Sort, Selection Sort, Insertion Sort, Merge Sort, Quick Sort, Breadth-First Search, Depth-First Search, Dijkstra's, and A* Search.
 
-## Labels
+## Evaluation
 
-- `binary_search`
-- `linear_search`
-- `bubble_sort`
-- `insertion_sort`
-- `quick_sort`
-- `merge_sort`
+No held-out accuracy is reported. The corpus is too small and too concentrated in one repository to support a meaningful independent test. In particular, training and testing on multiple snippets from the same source repository would not establish generalization to independently authored implementations. Future evaluation should use repository-held-out samples and identifier-renaming stress tests.
 
-## Splitting strategy
+## Limitations
 
-`src/train_model.py` uses `GroupShuffleSplit` with `template_group`. Variants of one base template remain together in either training or test data. This reduces the most direct form of near-duplicate leakage. Because the number of distinct templates is still small, the evaluation remains preliminary.
-
-## External source candidates for a future expanded corpus
-
-These repositories document algorithm implementations and can be inspected to collect independently sourced examples. They are **not included** in the current CSV because this build environment could not retrieve their source files, and their contents have not been individually checked or imported.
-
-- `mr-karan/Algorithm-Implementations--Python`: https://github.com/mr-karan/Algorithm-Implementations--Python — search results indicate an MIT-licensed Python repository containing binary search, insertion sort, merge sort, and quicksort files.
-- `TheAlgorithms/Python`: https://github.com/TheAlgorithms/Python — broad Python algorithm collection with a directory listing that includes sorting and searching algorithms. Verify the exact repository license and each file's provenance before redistribution.
-
-A future external-data ingestion process should record, for every sample: exact source URL, repository, commit hash, file path, license, algorithm label, and review status. Verify the implementation actually performs the assigned algorithm; filenames and README headings alone are not sufficient. Deduplicate exact and near-identical code, then split by repository so code from the same project cannot appear in both training and test sets.
-
-## Rebuilding
-
-```bash
-python src/generate_dataset.py
-```
-
-This regenerates the controlled dataset deterministically. It does not download external data.
+- The current model is a prototype, not a formal program verifier.
+- Different algorithms can share similar syntax; a small reference corpus may lead to incorrect or uncertain rankings.
+- Only Python source is supported.
+- The system does not execute submitted code.
+- The animation illustrates a separate reference implementation and controlled input; it does not replay the submitted program's actual runtime.
