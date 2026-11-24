@@ -1,7 +1,7 @@
-# Recognition results and interpretation
+# AlgoLens model results
 
-The bundled classifier is trained on the 15 curated, source-attributed Python implementation excerpts in `data/algorithm_samples.csv`.
+Run `python -m src.build_corpus` to collect the configured public-source corpus, then run `python -m src.recognition` to train the classifier and write `results/metrics.json`.
 
-No held-out accuracy or F1 score is reported. The available corpus is a small starter set from one public repository, so a random split would give a misleading impression of generalization. The model is intended to demonstrate AST normalization, structural feature extraction, and candidate ranking. Its output scores are relative ranking values, not calibrated probabilities.
+The training script attempts a repository-held-out evaluation before fitting the final model on all collected rows. It records the actual sample count, class distribution, source repositories, held-out repositories, accuracy, macro F1, and class coverage when the data supports a valid split. If it cannot form a meaningful repository-held-out split, it records why evaluation was not run.
 
-A meaningful next evaluation would require a substantially larger set of independently authored examples, manually verified labels, deduplication, and repository- or author-held-out test partitions.
+No new dataset size or accuracy figure should be quoted until the corpus builder and training command have completed successfully on the target machine.

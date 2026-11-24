@@ -11,7 +11,7 @@ AlgoLens is a Streamlit application for learning and exploring searching, sortin
 - **Code-specific complexity estimate:** best-, average-, and worst-case time complexity estimates for the submitted snippet.
 - **Recognition animation:** Play/Pause controls and a timeline animate the detected algorithm using a user-selected demonstration input.
 - **Complexity Table:** best-, average-, and worst-case complexity references plus interactive growth curves.
-- **Source-attributed corpus:** 15 curated implementation excerpts from the MIT-licensed TheAlgorithms/Python repository, with source URLs and labels.
+- **Multi-repository corpus builder:** collects source-attributed Python implementations from three public repositories with verified MIT or Apache-2.0 license metadata.
 
 ## Run locally
 
@@ -19,7 +19,8 @@ AlgoLens is a Streamlit application for learning and exploring searching, sortin
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m src
+python -m src.build_corpus
+python -m src.recognition
 streamlit run app.py
 ```
 
@@ -37,9 +38,9 @@ The intent is to identify algorithmic structure even if a user renames functions
 
 ## Dataset provenance and evaluation
 
-The bundled corpus contains 15 curated implementation excerpts across 11 classes, sourced from TheAlgorithms/Python. Each CSV row includes a sample ID, algorithm label, repository, original source URL, and license. The excerpts are isolated into standalone snippets and documentation/comment text is omitted; the algorithmic control flow and operations are retained. See `data/SOURCES.md` and `DATASET.md`.
+The repository includes a starter corpus and a builder for collecting more source files from TheAlgorithms/Python, keon/algorithms, stefan-jansen/python-algorithms, rlishtaba/py-algorithms, and xiaowang1105/algorithms-in-python. The builder verifies repository license metadata and records each sample's algorithm label, repository, source path, raw source URL, and license. See `data/SOURCES.md` and `DATASET.md`.
 
-The corpus is small and comes from one repository. No held-out accuracy is reported because that would imply a level of independent evaluation the current data cannot support. Renaming-stress tests confirm that the bundled examples retain their expected classifications after identifiers are consistently renamed, but this is not an independent generalization test. A stronger evaluation needs many more manually verified implementations from independent repositories, deduplication, and repository- or author-held-out testing.
+The checked-in CSV remains a small starter corpus until the collection command is run. After collection, the training script attempts a repository-held-out evaluation and records the actual dataset size, source repositories, class coverage, accuracy, and macro F1 in `results/metrics.json`. Do not quote a dataset size or accuracy figure until that process has completed; path-derived labels should be reviewed before being treated as verified ground truth.
 
 ## Visualization scope
 
@@ -72,3 +73,8 @@ AlgoLens/
 ├── DATASET.md
 └── README.md
 ```
+
+
+## Building the real-source training corpus
+
+Run `python -m src.build_corpus` to collect Python implementation files from the configured public repositories. The script verifies the repository license metadata, records per-sample source URLs and licenses, filters to the 11 supported algorithm categories, and deduplicates the results. Then run `python -m src.recognition` to train and evaluate the classifier using repository-held-out splits when possible. See `DATASET.md` and `data/SOURCES.md` for collection details and labeling caveats.

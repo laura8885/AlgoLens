@@ -11,6 +11,8 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import FeatureUnion
 from sklearn.svm import LinearSVC
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.metrics import accuracy_score, classification_report, f1_score
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_DIR = ROOT / "models"
@@ -188,15 +190,54 @@ def load_dataset() -> pd.DataFrame:
     return df.dropna(subset=["code", "algorithm"])
 
 
+def _repository_held_out_evaluation(df: pd.DataFrame, feature_text: list[str]) -> dict:
+    groups = df["repository"].fillna("unknown").astype(str).to_numpy()
+    labels = df["algorithm"].astype(str).to_numpy()
+    if len(set(groups)) < 2:
+        return {"status": "not_run", "reason": "At least two independent repositories are required for repository-held-out evaluation."}
+    splitter = GroupShuffleSplit(n_splits=40, test_size=0.25, random_state=42)
+    best = None
+    for train_indices, test_indices in splitter.split(feature_text, labels, groups):
+        train_labels = set(labels[train_indices])
+        eligible_test = [index for index in test_indices if labels[index] in train_labels]
+        covered_classes = set(labels[eligible_test])
+        if len(covered_classes) < 2 or len(eligible_test) < 3:
+            continue
+        coverage = (len(covered_classes), len(eligible_test))
+        if best is None or coverage > best[0]:
+            best = (coverage, train_indices, eligible_test)
+    if best is None:
+        return {"status": "not_run", "reason": "The repository distribution does not provide at least two classes and three eligible examples in a repository-held-out split."}
+    _, train_indices, test_indices = best
+    vectorizer = make_features()
+    X_train = vectorizer.fit_transform([feature_text[index] for index in train_indices])
+    X_test = vectorizer.transform([feature_text[index] for index in test_indices])
+    classifier = LinearSVC(C=0.8, class_weight="balanced", random_state=42)
+    classifier.fit(X_train, labels[train_indices])
+    predictions = classifier.predict(X_test)
+    evaluated_labels = sorted(set(labels[test_indices]))
+    return {
+        "status": "completed",
+        "split_method": "GroupShuffleSplit by repository; no repository appears in both train and test.",
+        "held_out_repositories": sorted(set(groups[test_indices])),
+        "training_repositories": sorted(set(groups[train_indices])),
+        "evaluated_samples": int(len(test_indices)),
+        "class_coverage": evaluated_labels,
+        "accuracy": float(accuracy_score(labels[test_indices], predictions)),
+        "macro_f1": float(f1_score(labels[test_indices], predictions, labels=evaluated_labels, average="macro", zero_division=0)),
+        "classification_report": classification_report(labels[test_indices], predictions, labels=evaluated_labels, zero_division=0, output_dict=True),
+        "interpretation": "This score measures performance on held-out repositories represented in this collected corpus; it does not establish performance on all arbitrary Python code.",
+    }
+
+
 def train() -> dict:
     DATA_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
     RESULTS_DIR.mkdir(exist_ok=True)
     df = load_dataset()
     extracted = [_extract(code) for code in df.code]
-    df = df.copy()
-    df["ast_features"] = [item[0] for item in extracted]
     feature_text = [f"{ast_text} STRUCTURE " + " ".join(f"{key}_{value}" for key, value in profile.items()) for ast_text, profile in extracted]
+    evaluation = _repository_held_out_evaluation(df, feature_text)
     vectorizer = make_features()
     X = vectorizer.fit_transform(feature_text)
     classifier = LinearSVC(C=0.8, class_weight="balanced", random_state=42)
@@ -205,7 +246,7 @@ def train() -> dict:
         "vectorizer": vectorizer,
         "classifier": classifier,
         "labels": sorted(df.algorithm.unique()),
-        "version": "3.0-ast-structure",
+        "version": "4.0-multi-repository-ast",
         "training_samples": len(df),
         "training_sources": sorted(df.repository.unique()),
     }
@@ -216,9 +257,9 @@ def train() -> dict:
         "examples_per_class": {str(k): int(v) for k, v in df.algorithm.value_counts().items()},
         "training_sources": sorted(df.repository.unique()),
         "feature_method": "Identifier-normalized Python AST node/operator/API patterns plus structural counts; comments and docstrings are excluded.",
-        "classifier": "LinearSVC trained on the full curated source corpus.",
-        "evaluation": "No held-out accuracy is reported. The available source corpus is a small curated reference set, not a sufficiently large independent benchmark. A repository-held-out evaluation is required before making generalization claims.",
-        "limitations": "The model is a code-pattern classifier, not a formal program verifier. It may confuse algorithms with similar control flow, and it may return an uncertain match for unsupported or hybrid code.",
+        "classifier": "LinearSVC trained on the full collected source corpus after evaluation.",
+        "repository_held_out_evaluation": evaluation,
+        "evaluation_warning": "A path-derived source label is not a formal correctness label. Review the corpus and class coverage before reporting results.",
     }
     (RESULTS_DIR / "metrics.json").write_text(json.dumps(metrics, indent=2))
     return metrics
@@ -228,7 +269,7 @@ def load_model():
     if not MODEL_PATH.exists():
         train()
     model = joblib.load(MODEL_PATH)
-    if model.get("version") != "3.0-ast-structure":
+    if model.get("version") != "4.0-multi-repository-ast":
         train()
         model = joblib.load(MODEL_PATH)
     return model

@@ -6,6 +6,7 @@ import unittest
 import pandas as pd
 
 from src.recognition import DATASET_PATH, analyze_code, estimate_complexity
+from src.build_corpus import _eligible_path, _label_from_path
 
 
 class RecognitionTests(unittest.TestCase):
@@ -42,7 +43,18 @@ class RecognitionTests(unittest.TestCase):
 
     def test_all_samples_have_source_attribution(self):
         self.assertTrue(self.dataset["source_url"].str.startswith("https://raw.githubusercontent.com/").all())
-        self.assertTrue(self.dataset["license"].eq("MIT").all())
+        self.assertTrue(self.dataset["license"].isin({"MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause"}).all())
+
+    def test_corpus_builder_labels_supported_algorithm_paths(self):
+        self.assertEqual(_label_from_path("sorts/merge_sort.py"), "Merge Sort")
+        self.assertEqual(_label_from_path("graphs/breadth_first_search.py"), "Breadth-First Search")
+        self.assertEqual(_label_from_path("graphs/a_star.py"), "A* Search")
+        self.assertIsNone(_label_from_path("sorts/heap_sort.py"))
+
+    def test_corpus_builder_excludes_test_and_documentation_paths(self):
+        self.assertFalse(_eligible_path("tests/test_quick_sort.py"))
+        self.assertFalse(_eligible_path("docs/quick_sort.py"))
+        self.assertTrue(_eligible_path("sorts/quick_sort.py"))
 
     def test_complexity_estimate_for_pasted_binary_search(self):
         code = """def locate(data, value):

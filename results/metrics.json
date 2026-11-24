@@ -30,7 +30,10 @@
     "TheAlgorithms/Python"
   ],
   "feature_method": "Identifier-normalized Python AST node/operator/API patterns plus structural counts; comments and docstrings are excluded.",
-  "classifier": "LinearSVC trained on the full curated source corpus.",
-  "evaluation": "No held-out accuracy is reported. The available source corpus is a small curated reference set, not a sufficiently large independent benchmark. A repository-held-out evaluation is required before making generalization claims.",
-  "limitations": "The model is a code-pattern classifier, not a formal program verifier. It may confuse algorithms with similar control flow, and it may return an uncertain match for unsupported or hybrid code."
+  "classifier": "LinearSVC trained on the full collected source corpus after evaluation.",
+  "repository_held_out_evaluation": {
+    "status": "not_run",
+    "reason": "At least two independent repositories are required for repository-held-out evaluation."
+  },
+  "evaluation_warning": "A path-derived source label is not a formal correctness label. Review the corpus and class coverage before reporting results."
 }

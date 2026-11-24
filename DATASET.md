@@ -1,25 +1,24 @@
-# Dataset and recognition methodology
+# AlgoLens dataset and recognition methodology
 
-AlgoLens uses a curated reference corpus of 15 real Python implementation excerpts across 11 algorithm categories. The excerpts are sourced from the MIT-licensed TheAlgorithms/Python repository. Every row in `data/algorithm_samples.csv` includes a sample ID, algorithm label, repository, original raw source URL, and license. See `data/SOURCES.md` for the source inventory and limitations.
+AlgoLens includes a corpus builder that collects real Python source files from public repositories. The configured sources are TheAlgorithms/Python (MIT), keon/algorithms (MIT), stefan-jansen/python-algorithms (Apache-2.0), rlishtaba/py-algorithms (MIT), and xiaowang1105/algorithms-in-python (MIT). The builder checks each repository's GitHub SPDX license metadata before downloading its source archive. It only includes repositories whose detected license matches the configured permissive license.
 
-The recognition pipeline does not depend on algorithm names in submitted code:
+Run the following from the project root to build the corpus and train the classifier:
 
-1. Python source is parsed with the standard-library `ast` module.
-2. Comments are absent from the AST, and function docstrings are removed.
-3. Function names, variable names, argument names, and ordinary attribute names are normalized. Selected behavioral APIs (such as `append`, `pop`, `popleft`, `heappop`, and `heappush`) are retained because their operations are meaningful structural evidence.
-4. AST node/operator patterns and structural counts are extracted, including loops, nested loops, recursion, indexed reads/writes, slices, comparisons, queue/stack operations, and priority-queue operations.
-5. A LinearSVC classifier ranks candidates. Transparent structural rules are combined with the model ranking to make the output more interpretable.
+```bash
+python -m src.build_corpus
+python -m src.recognition
+```
 
-The visualizer is independent of the submitted-code classifier. It provides step-by-step reference traces for all 11 supported algorithms: Linear Search, Binary Search, Bubble Sort, Selection Sort, Insertion Sort, Merge Sort, Quick Sort, Breadth-First Search, Depth-First Search, Dijkstra's, and A* Search.
+The builder selects files using algorithm-specific source-path patterns for the 11 supported categories, excludes test/documentation/example/benchmark folders, records raw source URLs and license identifiers, and removes duplicate source URLs and identical code/label pairs. The resulting `data/algorithm_samples.csv` records each sample's algorithm, repository, source path, license, and source URL.
+
+The recognition pipeline parses Python source with the standard-library `ast` module, removes comments and docstrings by operating on the AST, normalizes function and variable identifiers, and extracts AST/operator/API patterns and structural counts. A LinearSVC classifier ranks the 11 algorithm categories.
 
 ## Evaluation
 
-No held-out accuracy is reported. The corpus is too small and too concentrated in one repository to support a meaningful independent test. In particular, training and testing on multiple snippets from the same source repository would not establish generalization to independently authored implementations. Future evaluation should use repository-held-out samples and identifier-renaming stress tests.
+Training first attempts a repository-held-out evaluation using `GroupShuffleSplit`, keeping each repository entirely in either training or test data. The report includes accuracy, macro F1, held-out repositories, and class coverage only when the available corpus supports a split with multiple represented classes. The final model is then fitted on the full collected corpus.
 
-## Limitations
+The source paths provide weak labels rather than formal proof of algorithm correctness. Review the collected examples and the class distribution before using the results in research or application materials. Repository-held-out scores describe this collected corpus and should not be presented as performance on arbitrary Python code.
 
-- The current model is a prototype, not a formal program verifier.
-- Different algorithms can share similar syntax; a small reference corpus may lead to incorrect or uncertain rankings.
-- Only Python source is supported.
-- The system does not execute submitted code.
-- The animation illustrates a separate reference implementation and controlled input; it does not replay the submitted program's actual runtime.
+## Scope
+
+The classifier supports Python source only and does not execute submitted code. The algorithm animations use separate reference implementations and controlled inputs; they do not replay the submitted function's runtime.

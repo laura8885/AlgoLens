@@ -1,29 +1,25 @@
 # AlgoLens source-code corpus
 
-The bundled `algorithm_samples.csv` is a small, manually curated reference corpus of real Python implementations from the public **TheAlgorithms/Python** repository.
+The corpus builder collects source files from these public repositories. It checks the GitHub API's SPDX license metadata and includes a repository only when the detected license matches the expected permissive license. Every included sample records its raw source URL, repository, source path, and license in `algorithm_samples.csv`.
 
-- Repository: https://github.com/TheAlgorithms/Python
-- License: MIT (see https://github.com/TheAlgorithms/Python/blob/master/LICENSE.md)
-- Each row records its algorithm label, repository, license, sample ID, and original raw source-file URL.
-- The CSV contains 15 implementation excerpts covering 11 supported categories. Some source files contain more than one implementation (for example, iterative and recursive linear search and bubble sort, plus multiple binary-search variants).
-- Excerpts are isolated into parseable snippets. Comments and documentation strings are omitted from the training examples because AlgoLens is designed not to use prose labels as recognition clues. The algorithmic operations and control flow are retained; the original source URL is included for verification.
+| Repository | Expected license | Source |
+|---|---|---|
+| TheAlgorithms/Python | MIT | https://github.com/TheAlgorithms/Python |
+| keon/algorithms | MIT | https://github.com/keon/algorithms |
+| stefan-jansen/python-algorithms | Apache-2.0 | https://github.com/stefan-jansen/python-algorithms |
+| rlishtaba/py-algorithms | MIT | https://github.com/rlishtaba/py-algorithms |
+| xiaowang1105/algorithms-in-python | MIT | https://github.com/xiaowang1105/algorithms-in-python |
 
-## Source files represented
+## Build the corpus
 
-| Algorithm | Original source |
-|---|---|
-| Linear Search | https://raw.githubusercontent.com/TheAlgorithms/Python/master/searches/linear_search.py |
-| Binary Search | https://raw.githubusercontent.com/TheAlgorithms/Python/master/searches/binary_search.py |
-| Bubble Sort | https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/bubble_sort.py |
-| Selection Sort | https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/selection_sort.py |
-| Insertion Sort | https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/insertion_sort.py |
-| Merge Sort | https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/merge_sort.py |
-| Quick Sort | https://raw.githubusercontent.com/TheAlgorithms/Python/master/sorts/quick_sort.py |
-| Breadth-First Search | https://raw.githubusercontent.com/TheAlgorithms/Python/master/graphs/breadth_first_search.py |
-| Depth-First Search | https://raw.githubusercontent.com/TheAlgorithms/Python/master/graphs/depth_first_search.py |
-| Dijkstra's | https://raw.githubusercontent.com/TheAlgorithms/Python/master/graphs/dijkstra.py |
-| A* Search | https://raw.githubusercontent.com/TheAlgorithms/Python/master/graphs/a_star.py |
+```bash
+python -m src.build_corpus
+```
 
-## Important dataset limitation
+The builder uses repository paths and filenames to assign labels for Linear Search, Binary Search, Bubble Sort, Selection Sort, Insertion Sort, Merge Sort, Quick Sort, Breadth-First Search, Depth-First Search, Dijkstra's, and A* Search. It excludes test, documentation, example, and benchmark directories and deduplicates repeated source URLs and identical code/label pairs.
 
-This is a source-derived starter corpus, not a published benchmark dataset and not a large, independently sampled collection. It is suitable for demonstrating source attribution, AST preprocessing, and a prototype classification workflow. It is not sufficient to support a credible generalization or accuracy claim. A stronger study should expand the corpus with independently authored repositories, verify each algorithm label, deduplicate near-identical code, and split training/testing by repository or author.
+GitHub API access is unauthenticated by default. If you encounter API rate limits, set `GITHUB_TOKEN` in your shell and rerun the command. The token is read from the environment and is not written to project files.
+
+## Label quality
+
+The path-based labels are weak labels, not human-verified ground truth. A file may contain helper routines or multiple functions, and repository naming conventions can be imperfect. Inspect the generated CSV and correct questionable labels before treating the corpus as a research benchmark.

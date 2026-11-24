@@ -53,7 +53,7 @@ with st.sidebar:
     st.caption("ALGORITHM STUDIO · v3.0")
     page = st.radio("WORKSPACE", ["Overview", "Algorithm Explorer", "Code Recognition", "Complexity Table", "About & Methodology"], label_visibility="visible")
     st.divider()
-    st.markdown("<span class='small-muted'>11 algorithms · 3 families · 15 source examples</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small-muted'>11 algorithms · 3 families · multi-repository corpus builder</span>", unsafe_allow_html=True)
 
 
 def metric_card(label, value, note):
@@ -384,6 +384,7 @@ else:
 ├── app.py                  # Streamlit interface and page routing
 ├── src/
 │   ├── algorithms.py       # Deterministic execution-trace generators
+│   ├── build_corpus.py     # License-checked public-source corpus collection
 │   └── recognition.py      # AST normalization, structural analysis, training, inference
 ├── data/
 │   ├── algorithm_samples.csv
@@ -397,9 +398,9 @@ else:
 ├── requirements.txt
 └── README.md""",language="text")
     st.markdown("### Machine-learning methodology")
-    st.write("The recognition component parses Python with the built-in AST module. It removes function names, variable names, comments, and docstrings before extracting node patterns, operators, recursion, indexing, queue/stack operations, and priority-queue behavior. A LinearSVC model ranks candidate algorithms alongside transparent structural rules. The bundled reference corpus contains real implementation excerpts curated from TheAlgorithms/Python (MIT license), with a source URL and label for each sample. This is a small source-derived corpus, not a benchmark dataset; no held-out accuracy is reported.")
+    st.write("The recognition component parses Python with the built-in AST module. It removes function names, variable names, comments, and docstrings before extracting node patterns, operators, recursion, indexing, queue/stack operations, and priority-queue behavior. A LinearSVC model ranks candidate algorithms alongside transparent structural rules. The corpus builder collects source files from public Python repositories after checking their SPDX license metadata. Each sample records its repository, source path, raw source URL, license, and path-derived algorithm label. Run the corpus builder to collect and deduplicate source files from the configured repositories, then retrain the classifier. Evaluation uses repository-held-out splits when the collected corpus has enough independent sources and class overlap.")
     st.markdown("### Scope and limitations")
-    st.write("The visualizations are generated from independent algorithm implementations and controlled inputs; they do not execute arbitrary submitted code. The recognition model is a prototype trained on a small public-source reference corpus, so its predictions do not establish generalization to arbitrary independently authored code. The classifier is intentionally not presented with an accuracy figure because the available corpus is too small for a meaningful held-out evaluation. Graph examples use a fixed weighted sample network. A* uses half the Euclidean distance over the sample node layout as its heuristic, keeping the estimate conservative for the sample edge costs.")
+    st.write("The visualizations are generated from independent algorithm implementations and controlled inputs; they do not execute arbitrary submitted code. The recognition model is a code-pattern classifier, not a formal program verifier. Source-path labels are useful collection signals but should be reviewed; repository-held-out metrics are only meaningful for classes and repositories represented in the split, and do not establish generalization to arbitrary Python code. Graph examples use a fixed weighted sample network. A* uses half the Euclidean distance over the sample node layout as its heuristic, keeping the estimate conservative for the sample edge costs.")
     st.markdown("### Reproducibility")
-    st.code("python -m venv .venv\nsource .venv/bin/activate  # macOS / Linux\npip install -r requirements.txt\npython -m src.recognition\nstreamlit run app.py",language="bash")
+    st.code("python -m venv .venv\nsource .venv/bin/activate  # macOS / Linux\npip install -r requirements.txt\npython -m src.build_corpus\npython -m src.recognition\nstreamlit run app.py",language="bash")
     st.caption("For a Windows environment, activate the virtual environment with .venv\\Scripts\\activate.")
